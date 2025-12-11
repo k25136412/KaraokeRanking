@@ -33,14 +33,12 @@ export const generateRanking = (participants: Participant[]): RankingItem[] => {
     return { ...p, ...stats };
   });
 
-  // 2. Find the global max song score across all participants
-  let globalMaxSongScore = 0;
-  participants.forEach(p => {
-    [p.scores.song1, p.scores.song2, p.scores.song3].forEach(s => {
-      if (typeof s === 'number' && s > globalMaxSongScore) {
-        globalMaxSongScore = s;
-      }
-    });
+  // 2. Find the highest final score across all participants
+  let maxFinalScore = 0;
+  tempRanked.forEach(p => {
+    if (p.finalScore > maxFinalScore) {
+      maxFinalScore = p.finalScore;
+    }
   });
 
   // 3. Calculate rank and next handicap
@@ -48,15 +46,22 @@ export const generateRanking = (participants: Participant[]): RankingItem[] => {
   tempRanked.sort((a, b) => b.finalScore - a.finalScore);
 
   return tempRanked.map((item, index) => {
-    // Formula: Max Song Score - My Final Score (Max 15)
-    let nextHandicap = globalMaxSongScore - item.finalScore;
-    if (nextHandicap < 0) nextHandicap = 0; // Floor at 0
-    if (nextHandicap > 15) nextHandicap = 15; // Cap at 15
+    // New Formula: Max Final Score - My Final Score
+    let diff = maxFinalScore - item.finalScore;
+    
+    // Ensure non-negative
+    if (diff < 0) diff = 0;
+
+    // Floor to integer (user request: 小数切り捨て)
+    let nextHandicap = Math.floor(diff);
+    
+    // Cap at 15
+    if (nextHandicap > 15) nextHandicap = 15;
 
     return {
       ...item,
       rank: index + 1,
-      nextHandicap: parseFloat(nextHandicap.toFixed(2))
+      nextHandicap: nextHandicap
     };
   });
 };

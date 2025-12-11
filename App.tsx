@@ -49,6 +49,28 @@ const INITIAL_MASTERS = [
   'ケイスケ', 'リョウ', 'リエ', 'サキ', 'ワタル'
 ];
 
+// 2025/08/23 Data
+const PRESET_SESSION: Session = {
+  id: 'preset-20250823',
+  date: '2025-08-23T19:00:00.000Z',
+  name: '20250823_カラオケバトル',
+  isFinished: true,
+  participants: [
+    { id: 'preset-takaharu', name: 'タカハル', handicap: 4.0, scores: { song1: 86.623, song2: 90.585, song3: 89.751 } },
+    { id: 'preset-nobuko', name: 'ノブコ', handicap: 7.0, scores: { song1: 80.622, song2: 81.429, song3: 74.629 } },
+    { id: 'preset-risa', name: 'リサ', handicap: 8.0, scores: { song1: 92.249, song2: 86.069, song3: 90.254 } },
+    { id: 'preset-kohei', name: 'コウヘイ', handicap: 0.0, scores: { song1: 89.356, song2: 90.741, song3: 88.494 } },
+    { id: 'preset-sayaka', name: 'サヤカ', handicap: 2.0, scores: { song1: 95.023, song2: 92.644, song3: 93.693 } },
+    { id: 'preset-keisuke', name: 'ケイスケ', handicap: 4.0, scores: { song1: 89.282, song2: 88.329, song3: 86.221 } },
+    { id: 'preset-ryo', name: 'リョウ', handicap: 1.0, scores: { song1: 91.872, song2: 90.120, song3: 87.825 } },
+    { id: 'preset-rie', name: 'リエ', handicap: 6.0, scores: { song1: 88.968, song2: 91.530, song3: 91.997 } },
+    { id: 'preset-saki', name: 'サキ', handicap: 15.0, scores: { song1: 78.173, song2: 74.555, song3: 69.405 } },
+    { id: 'preset-wataru', name: 'ワタル', handicap: 8.0, scores: { song1: 79.555, song2: 79.082, song3: 77.511 } },
+  ]
+};
+
+const INITIAL_DATA: Session[] = [PRESET_SESSION];
+
 export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [masterList, setMasterList] = useState<string[]>(INITIAL_MASTERS);
@@ -57,7 +79,6 @@ export default function App() {
   
   // Setup State
   const [setupName, setSetupName] = useState('');
-  // setupParticipants now stores temporary handicap editing
   const [setupParticipants, setSetupParticipants] = useState<{ name: string; handicap: number }[]>([]);
   const [newMasterName, setNewMasterName] = useState('');
 
@@ -74,8 +95,30 @@ export default function App() {
     const savedSessions = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedSessions) {
       try {
-        setSessions(JSON.parse(savedSessions));
-      } catch (e) { console.error(e); }
+        const parsed: Session[] = JSON.parse(savedSessions);
+        // Ensure the preset session exists (if not deleted by user previously, but here we force inject for the request)
+        // Check if preset exists
+        const hasPreset = parsed.some(s => s.id === PRESET_SESSION.id);
+        
+        if (!hasPreset) {
+          // If preset is missing, we add it to the top (newest) or bottom? 
+          // Usually history is sorted by date.
+          // Since it's an old date, let's just append it or let the user decide.
+          // For now, we prepend it to the list to ensure visibility or merge it.
+          // However, simple merge is safer.
+          const merged = [...parsed, PRESET_SESSION].sort((a, b) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          setSessions(merged);
+        } else {
+          setSessions(parsed);
+        }
+      } catch (e) { 
+        console.error(e); 
+        setSessions(INITIAL_DATA);
+      }
+    } else {
+      setSessions(INITIAL_DATA);
     }
     
     const savedMasters = localStorage.getItem(MASTER_STORAGE_KEY);
@@ -115,9 +158,14 @@ export default function App() {
 
   // --- Helpers ---
   const getLastHandicap = (name: string): number => {
-    const lastFinishedSession = sessions.find(s => s.isFinished && s.participants.some(p => p.name === name));
-    if (lastFinishedSession) {
-      const rankings = generateRanking(lastFinishedSession.participants);
+    // Find the latest finished session where this user participated
+    const userSessions = sessions
+      .filter(s => s.isFinished && s.participants.some(p => p.name === name))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (userSessions.length > 0) {
+      const lastSession = userSessions[0];
+      const rankings = generateRanking(lastSession.participants);
       const userRank = rankings.find(r => r.name === name);
       return userRank?.nextHandicap ?? 0;
     }
@@ -168,7 +216,7 @@ export default function App() {
       })),
       isFinished: false
     };
-    setSessions([newSession, ...sessions]);
+    setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(newSession.id);
     setView('ACTIVE');
   };
