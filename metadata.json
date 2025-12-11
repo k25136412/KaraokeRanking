@@ -1,0 +1,5 @@
+{
+  "name": "KaraokeRanker",
+  "description": "A mobile-first karaoke ranking application that calculates averages based on 3 songs and handicaps. Saves data locally.",
+  "requestFramePermissions": []
+}
