@@ -40,6 +40,17 @@ const IconTrash = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
   </svg>
 );
+const IconMapPin = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+  </svg>
+);
+const IconMusicNote = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+  </svg>
+);
 
 const LOCAL_STORAGE_KEY = 'karaoke_app_data_v1';
 const MASTER_STORAGE_KEY = 'karaoke_app_master_v1';
@@ -50,10 +61,12 @@ const INITIAL_MASTERS = [
 ];
 
 // 2025/08/23 Data
-const PRESET_SESSION: Session = {
+const PRESET_20250823: Session = {
   id: 'preset-20250823',
   date: '2025-08-23T19:00:00.000Z',
   name: '20250823_カラオケバトル',
+  location: 'カラオケメガビッグ 光明池駅前店',
+  machineType: 'Livedam Ai',
   isFinished: true,
   participants: [
     { id: 'preset-takaharu', name: 'タカハル', handicap: 4.0, scores: { song1: 86.623, song2: 90.585, song3: 89.751 } },
@@ -69,7 +82,69 @@ const PRESET_SESSION: Session = {
   ]
 };
 
-const INITIAL_DATA: Session[] = [PRESET_SESSION];
+// 2025/01/01 Data
+const PRESET_20250101: Session = {
+  id: 'preset-20250101',
+  date: '2025-01-01T13:00:00.000Z',
+  name: '20250101_カラオケバトル',
+  location: 'ラウンドワン ららぽーと和泉店',
+  isFinished: true,
+  participants: [
+    { id: 'preset-0101-takaharu', name: 'タカハル', handicap: 3.0, scores: { song1: 89.046, song2: 89.609, song3: 89.260 } },
+    { id: 'preset-0101-nobuko', name: 'ノブコ', handicap: 15.0, scores: { song1: 87.270, song2: 85.965, song3: 85.114 } },
+    { id: 'preset-0101-kohei', name: 'コウヘイ', handicap: 3.0, scores: { song1: 92.547, song2: 94.540, song3: 92.420 } },
+    { id: 'preset-0101-sayaka', name: 'サヤカ', handicap: 0.0, scores: { song1: 91.569, song2: 91.153, song3: 90.657 } },
+    { id: 'preset-0101-ryo', name: 'リョウ', handicap: 4.0, scores: { song1: 92.082, song2: 93.922, song3: 91.754 } },
+    { id: 'preset-0101-rie', name: 'リエ', handicap: 4.0, scores: { song1: 86.729, song2: 88.888, song3: 85.999 } },
+    { id: 'preset-0101-wataru', name: 'ワタル', handicap: 15.0, scores: { song1: 90.070, song2: 79.051, song3: 85.724 } },
+  ]
+};
+
+// 2024/04/27 Data
+const PRESET_20240427: Session = {
+  id: 'preset-20240427',
+  date: '2024-04-27T13:00:00.000Z',
+  name: '20240427_カラオケバトル',
+  location: 'ラウンドワン ららぽーと和泉店',
+  machineType: '不明',
+  isFinished: true,
+  participants: [
+    { id: 'preset-0427-takaharu', name: 'タカハル', handicap: 5.0, scores: { song1: 87.089, song2: 91.294, song3: 92.057 } },
+    { id: 'preset-0427-nobuko', name: 'ノブコ', handicap: 12.0, scores: { song1: 80.312, song2: 80.768, song3: 79.809 } },
+    { id: 'preset-0427-risa', name: 'リサ', handicap: 8.0, scores: { song1: 89.328, song2: 94.058, song3: 89.946 } },
+    { id: 'preset-0427-kohei', name: 'コウヘイ', handicap: 3.0, scores: { song1: 90.745, song2: 94.486, song3: 87.578 } },
+    { id: 'preset-0427-sayaka', name: 'サヤカ', handicap: 0.0, scores: { song1: 94.187, song2: 91.208, song3: 92.454 } },
+    { id: 'preset-0427-keisuke', name: 'ケイスケ', handicap: 4.0, scores: { song1: 85.138, song2: 85.747, song3: 86.586 } },
+    { id: 'preset-0427-ryo', name: 'リョウ', handicap: 0.0, scores: { song1: 91.165, song2: 89.826, song3: 88.389 } },
+    { id: 'preset-0427-rie', name: 'リエ', handicap: 5.0, scores: { song1: 87.768, song2: 86.791, song3: 88.443 } },
+    { id: 'preset-0427-saki', name: 'サキ', handicap: 20.0, scores: { song1: 76.768, song2: 72.264, song3: 77.025 } },
+    { id: 'preset-0427-wataru', name: 'ワタル', handicap: 20.0, scores: { song1: 79.347, song2: 0, song3: 0 } },
+  ]
+};
+
+// 2024/02/23 Data
+const PRESET_20240223: Session = {
+  id: 'preset-20240223',
+  date: '2024-02-23T13:00:00.000Z',
+  name: '20240223_カラオケバトル',
+  location: 'ラウンドワン ららぽーと和泉店',
+  machineType: '不明',
+  isFinished: true,
+  participants: [
+    { id: 'preset-0223-takaharu', name: 'タカハル', handicap: 5.0, scores: { song1: 89.663, song2: 81.754, song3: 87.771 } },
+    { id: 'preset-0223-nobuko', name: 'ノブコ', handicap: 15.0, scores: { song1: 75.325, song2: 82.331, song3: 82.984 } },
+    { id: 'preset-0223-kohei', name: 'コウヘイ', handicap: 0.0, scores: { song1: 88.787, song2: 86.543, song3: 91.160 } },
+    { id: 'preset-0223-sayaka', name: 'サヤカ', handicap: 1.0, scores: { song1: 91.661, song2: 92.308, song3: 90.308 } },
+    { id: 'preset-0223-keisuke', name: 'ケイスケ', handicap: 11.0, scores: { song1: 89.030, song2: 90.007, song3: 82.990 } },
+    { id: 'preset-0223-risa', name: 'リサ', handicap: 5.0, scores: { song1: 87.841, song2: 81.127, song3: 82.941 } },
+    { id: 'preset-0223-ryo', name: 'リョウ', handicap: 5.0, scores: { song1: 93.272, song2: 93.653, song3: 88.412 } },
+    { id: 'preset-0223-rie', name: 'リエ', handicap: 10.0, scores: { song1: 85.751, song2: 89.740, song3: 84.310 } },
+    { id: 'preset-0223-saki', name: 'サキ', handicap: 20.0, scores: { song1: 75.186, song2: 67.971, song3: 69.078 } },
+    { id: 'preset-0223-wataru', name: 'ワタル', handicap: 20.0, scores: { song1: 0, song2: 0, song3: 0 } },
+  ]
+};
+
+const INITIAL_DATA: Session[] = [PRESET_20250823, PRESET_20250101, PRESET_20240427, PRESET_20240223];
 
 export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -79,6 +154,10 @@ export default function App() {
   
   // Setup State
   const [setupName, setSetupName] = useState('');
+  const [setupDate, setSetupDate] = useState('');
+  const [setupLocation, setSetupLocation] = useState('');
+  const [setupMachine, setSetupMachine] = useState('');
+  
   const [setupParticipants, setSetupParticipants] = useState<{ name: string; handicap: number }[]>([]);
   const [newMasterName, setNewMasterName] = useState('');
 
@@ -95,24 +174,33 @@ export default function App() {
     const savedSessions = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedSessions) {
       try {
-        const parsed: Session[] = JSON.parse(savedSessions);
-        // Ensure the preset session exists (if not deleted by user previously, but here we force inject for the request)
-        // Check if preset exists
-        const hasPreset = parsed.some(s => s.id === PRESET_SESSION.id);
+        let parsed: Session[] = JSON.parse(savedSessions);
         
-        if (!hasPreset) {
-          // If preset is missing, we add it to the top (newest) or bottom? 
-          // Usually history is sorted by date.
-          // Since it's an old date, let's just append it or let the user decide.
-          // For now, we prepend it to the list to ensure visibility or merge it.
-          // However, simple merge is safer.
-          const merged = [...parsed, PRESET_SESSION].sort((a, b) => 
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-          setSessions(merged);
-        } else {
-          setSessions(parsed);
+        // Ensure presets exist or update specific fields
+        let hasChanges = false;
+        INITIAL_DATA.forEach(preset => {
+          const index = parsed.findIndex(s => s.id === preset.id);
+          if (index === -1) {
+            // Add new preset
+            parsed.push(preset);
+            hasChanges = true;
+          } else {
+            // Update location for 20250823 if it matches the ID
+            if (preset.id === 'preset-20250823') {
+              // Always update location to match the new request even if local storage is old
+              if (parsed[index].location !== preset.location) {
+                parsed[index].location = preset.location;
+                hasChanges = true;
+              }
+            }
+          }
+        });
+
+        if (hasChanges) {
+           parsed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         }
+
+        setSessions(parsed);
       } catch (e) { 
         console.error(e); 
         setSessions(INITIAL_DATA);
@@ -176,6 +264,14 @@ export default function App() {
 
   const startNewSession = () => {
     setSetupName(`カラオケ大会 ${new Date().toLocaleDateString('ja-JP')}`);
+    
+    // Default to current time for datetime-local (requires yyyy-MM-ddThh:mm)
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setSetupDate(now.toISOString().slice(0, 16));
+    
+    setSetupLocation('');
+    setSetupMachine('');
     setSetupParticipants([]);
     setView('SETUP');
   };
@@ -204,10 +300,16 @@ export default function App() {
 
   const createSession = () => {
     if (setupParticipants.length === 0) return;
+    
+    // Parse the local datetime string to ISO
+    const sessionDate = setupDate ? new Date(setupDate).toISOString() : new Date().toISOString();
+
     const newSession: Session = {
       id: uuidv4(),
-      date: new Date().toISOString(),
+      date: sessionDate,
       name: setupName,
+      location: setupLocation,
+      machineType: setupMachine,
       participants: setupParticipants.map(p => ({
         id: uuidv4(),
         name: p.name,
@@ -328,16 +430,27 @@ export default function App() {
                     <h3 className="font-bold text-lg text-white">{session.name}</h3>
                  </div>
                  
-                 <div className="flex items-center gap-3 text-sm text-slate-400">
-                    <span>{formatDate(session.date)}</span>
-                    <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                    <span>{session.participants.length}人</span>
-                    {session.isFinished && (
-                      <span className="ml-2 bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded font-medium border border-indigo-500/20">
-                        完了
-                      </span>
+                 <div className="flex flex-col gap-1 mt-1 text-sm text-slate-400">
+                    <div className="flex items-center gap-3">
+                      <span>{formatDate(session.date)}</span>
+                      <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                      <span>{session.participants.length}人</span>
+                    </div>
+                    {session.location && (
+                       <div className="flex items-center gap-1 text-xs text-slate-500">
+                          <IconMapPin />
+                          <span>{session.location}</span>
+                       </div>
                     )}
                  </div>
+
+                 {session.isFinished && (
+                   <div className="absolute top-4 right-14">
+                      <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded font-medium border border-indigo-500/20">
+                        完了
+                      </span>
+                   </div>
+                 )}
               </div>
 
               <button 
@@ -378,6 +491,24 @@ export default function App() {
           value={setupName}
           onChange={(e) => setSetupName(e.target.value)}
           placeholder="例: 〇〇忘年会"
+        />
+        <Input 
+          label="日時"
+          type="datetime-local"
+          value={setupDate}
+          onChange={(e) => setSetupDate(e.target.value)}
+        />
+        <Input 
+          label="場所"
+          value={setupLocation}
+          onChange={(e) => setSetupLocation(e.target.value)}
+          placeholder="例: カラオケ館 新宿店"
+        />
+        <Input 
+          label="カラオケ機種"
+          value={setupMachine}
+          onChange={(e) => setSetupMachine(e.target.value)}
+          placeholder="例: JOYSOUND X1, DAM Ai"
         />
       </Card>
 
@@ -478,15 +609,31 @@ export default function App() {
           </button>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-white leading-tight">{activeSession.name}</h2>
-            <p className="text-xs text-slate-400">{readonly ? '結果発表' : '採点中...'}</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+               <span className="text-xs text-slate-400">
+                 {formatDate(activeSession.date)}
+               </span>
+               {activeSession.location && (
+                 <span className="text-xs text-slate-400 flex items-center gap-1">
+                   <IconMapPin />
+                   {activeSession.location}
+                 </span>
+               )}
+               {activeSession.machineType && (
+                 <span className="text-xs text-slate-400 flex items-center gap-1">
+                   <IconMusicNote />
+                   {activeSession.machineType}
+                 </span>
+               )}
+            </div>
           </div>
           {readonly && !activeSession.aiSummary && (
              <button 
                onClick={generateSummary}
                disabled={isGeneratingSummary}
-               className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-2 rounded-full border border-indigo-500/30 flex items-center gap-1"
+               className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-2 rounded-full border border-indigo-500/30 flex items-center gap-1 whitespace-nowrap"
              >
-               {isGeneratingSummary ? '生成中...' : 'AI実況生成'}
+               {isGeneratingSummary ? '生成中' : 'AI実況'}
              </button>
           )}
         </div>
@@ -501,6 +648,13 @@ export default function App() {
               {activeSession.aiSummary}
             </p>
           </Card>
+        )}
+        
+        {/* Handicap Rule Label (Only in Results View) */}
+        {readonly && (
+          <div className="text-right text-[10px] text-slate-400 px-2 -mb-1">
+            ※次回ハンデ＝最高得点ー自分の得点 または 最大15
+          </div>
         )}
 
         <div className="space-y-3">
@@ -560,12 +714,12 @@ export default function App() {
                      {/* Pre-handicap Score (Average) */}
                      <div className="flex items-center gap-1 mb-1">
                         <span className="text-[10px] text-slate-500">素点Avg</span>
-                        <span className="text-sm font-bold text-slate-300 font-mono">{r.average.toFixed(2)}</span>
+                        <span className="text-sm font-bold text-slate-300 font-mono">{r.average.toFixed(3)}</span>
                      </div>
                      
                      {/* Final Score */}
                     <div className="text-2xl font-black text-white tracking-tighter leading-none">
-                      {r.finalScore.toFixed(2)}
+                      {r.finalScore.toFixed(3)}
                     </div>
 
                     {/* Next Handicap (Only when finished) */}

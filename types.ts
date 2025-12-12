@@ -15,6 +15,8 @@ export interface Session {
   id: string;
   date: string; // ISO string
   name: string;
+  location?: string;
+  machineType?: string;
   participants: Participant[];
   isFinished: boolean;
   aiSummary?: string;

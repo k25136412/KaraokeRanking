@@ -20,8 +20,8 @@ export const calculateStats = (participant: Participant): { average: number; fin
   }
 
   return {
-    average: parseFloat(average.toFixed(2)),
-    finalScore: parseFloat(finalScore.toFixed(2)),
+    average: parseFloat(average.toFixed(3)),
+    finalScore: parseFloat(finalScore.toFixed(3)),
     gamesPlayed
   };
 };
@@ -43,7 +43,14 @@ export const generateRanking = (participants: Participant[]): RankingItem[] => {
 
   // 3. Calculate rank and next handicap
   // Sort by Final Score descending
-  tempRanked.sort((a, b) => b.finalScore - a.finalScore);
+  // If tied, lower handicap is ranked higher (ascending handicap)
+  tempRanked.sort((a, b) => {
+    if (b.finalScore !== a.finalScore) {
+      return b.finalScore - a.finalScore;
+    }
+    // Tie-breaker: Lower handicap comes first
+    return a.handicap - b.handicap;
+  });
 
   return tempRanked.map((item, index) => {
     // New Formula: Max Final Score - My Final Score
