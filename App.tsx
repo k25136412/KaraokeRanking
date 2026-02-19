@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Session, ViewState, Participant, ScoreData, RankingItem } from './types';
 import { calculateStats, generateRanking, formatDate } from './utils/calculations';
-import { generateSessionSummary } from './services/geminiService';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
 import { Card } from './components/Card';
