@@ -91,8 +91,42 @@ const PRESET_20240223: Session = {
   ]
 };
 
-export const INITIAL_SESSIONS: Session[] = [PRESET_20250823, PRESET_20250101, PRESET_20240427, PRESET_20240223];
+const PRESET_20251217: Session = {
+  id: 'preset-20251217',
+  date: '2025-12-17T20:18:00.000Z',
+  name: 'カラオケ大会 2025/12/17',
+  isFinished: true,
+  participants: [
+    { id: 'preset-1217-kohei', name: 'コウヘイ', handicap: 7.0, scores: { song1: 99.073, song2: 94.777, song3: 84.096 } },
+    { id: 'preset-1217-nobuko', name: 'ノブコ', handicap: 11.0, scores: { song1: 93.65, song2: 88.296, song3: 81.611 } },
+    { id: 'preset-1217-risa', name: 'リサ', handicap: 0.0, scores: { song1: 99.939, song2: 95.058, song3: 96.205 } },
+    { id: 'preset-1217-keisuke', name: 'ケイスケ', handicap: 5.0, scores: { song1: 96.904, song2: 91.641, song3: 80.832 } },
+    { id: 'preset-1217-sayaka', name: 'サヤカ', handicap: 1.0, scores: { song1: 99.287, song2: 81.881, song3: 99.653 } },
+    { id: 'preset-1217-takaharu', name: 'タカハル', handicap: 4.0, scores: { song1: 81.562, song2: 84.201, song3: 0 } },
+  ]
+};
 
+const PRESET_20260101: Session = {
+  id: 'preset-20260101',
+  date: '2026-01-01T20:00:00.000Z', 
+  name: 'カラオケ大会 2026/01/01',
+  location: 'メガビック光明池店',
+  isFinished: true,
+  participants: [
+    { id: 'preset-0101-kohei', name: 'コウヘイ', handicap: 7.0, scores: { song1: 88.907, song2: 90.694, song3: 90.15 } },
+    { id: 'preset-0101-ryo', name: 'リョウ', handicap: 6.0, scores: { song1: 91.585, song2: 90.846, song3: 88.197 } },
+    { id: 'preset-0101-takaharu', name: 'タカハル', handicap: 4.0, scores: { song1: 92.554, song2: 92.023, song3: 90.77 } },
+    { id: 'preset-0101-wataru', name: 'ワタル', handicap: 10.0, scores: { song1: 86.741, song2: 84.843, song3: 83.236 } },
+    { id: 'preset-0101-nobuko', name: 'ノブコ', handicap: 11.0, scores: { song1: 83.927, song2: 82.489, song3: 83 } },
+    { id: 'preset-0101-keisuke', name: 'ケイスケ', handicap: 5.0, scores: { song1: 85.254, song2: 89.239, song3: 88.723 } },
+    { id: 'preset-0101-sayaka', name: 'サヤカ', handicap: 1.0, scores: { song1: 88.366, song2: 93.081, song3: 90.11 } },
+    { id: 'preset-0101-rie', name: 'リエ', handicap: 0.0, scores: { song1: 90.382, song2: 89.721, song3: 90.494 } },
+    { id: 'preset-0101-risa', name: 'リサ', handicap: 0.0, scores: { song1: 87.674, song2: 86.425, song3: 88.118 } },
+    { id: 'preset-0101-saki', name: 'サキ', handicap: 8.0, scores: { song1: 79.978, song2: 70.53, song3: 68.554 } },
+  ]
+};
+
+export const INITIAL_SESSIONS: Session[] = [PRESET_20251217, PRESET_20250823, PRESET_20250101, PRESET_20240427, PRESET_20240223, PRESET_20260101];
 
 /**
  * Seeds the database with initial master list and session data.

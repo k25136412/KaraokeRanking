@@ -19,7 +19,6 @@ export interface Session {
   machineType?: string;
   participants: Participant[];
   isFinished: boolean;
-  aiSummary?: string;
 }
 
 export type ViewState = 'HISTORY' | 'SETUP' | 'ACTIVE' | 'DETAILS';
