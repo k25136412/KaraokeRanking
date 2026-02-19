@@ -7,6 +7,8 @@ import { Input } from './components/Input';
 import { Card } from './components/Card';
 import { ScoreModal } from './components/ScoreModal';
 import { ConfirmModal } from './components/ConfirmModal';
+import { onSessionsChange, saveSession, deleteSession as deleteSessionFromDB, getMasterList, saveMasterList as saveMasterListToDB } from './services/firebaseService';
+import { seedDatabase } from './services/seed';
 
 // --- Icons (SVG) ---
 const IconTrophy = () => (
@@ -54,100 +56,9 @@ const IconMusicNote = () => (
 const LOCAL_STORAGE_KEY = 'karaoke_app_data_v1';
 const MASTER_STORAGE_KEY = 'karaoke_app_master_v1';
 
-const INITIAL_MASTERS = [
-  'タカハル', 'ノブコ', 'リサ', 'コウヘイ', 'サヤカ', 
-  'ケイスケ', 'リョウ', 'リエ', 'サキ', 'ワタル'
-];
-
-// 2025/08/23 Data
-const PRESET_20250823: Session = {
-  id: 'preset-20250823',
-  date: '2025-08-23T19:00:00.000Z',
-  name: '20250823_カラオケバトル',
-  location: 'カラオケメガビッグ 光明池駅前店',
-  machineType: 'Livedam Ai',
-  isFinished: true,
-  participants: [
-    { id: 'preset-takaharu', name: 'タカハル', handicap: 4.0, scores: { song1: 86.623, song2: 90.585, song3: 89.751 } },
-    { id: 'preset-nobuko', name: 'ノブコ', handicap: 7.0, scores: { song1: 80.622, song2: 81.429, song3: 74.629 } },
-    { id: 'preset-risa', name: 'リサ', handicap: 8.0, scores: { song1: 92.249, song2: 86.069, song3: 90.254 } },
-    { id: 'preset-kohei', name: 'コウヘイ', handicap: 0.0, scores: { song1: 89.356, song2: 90.741, song3: 88.494 } },
-    { id: 'preset-sayaka', name: 'サヤカ', handicap: 2.0, scores: { song1: 95.023, song2: 92.644, song3: 93.693 } },
-    { id: 'preset-keisuke', name: 'ケイスケ', handicap: 4.0, scores: { song1: 89.282, song2: 88.329, song3: 86.221 } },
-    { id: 'preset-ryo', name: 'リョウ', handicap: 1.0, scores: { song1: 91.872, song2: 90.120, song3: 87.825 } },
-    { id: 'preset-rie', name: 'リエ', handicap: 6.0, scores: { song1: 88.968, song2: 91.530, song3: 91.997 } },
-    { id: 'preset-saki', name: 'サキ', handicap: 15.0, scores: { song1: 78.173, song2: 74.555, song3: 69.405 } },
-    { id: 'preset-wataru', name: 'ワタル', handicap: 8.0, scores: { song1: 79.555, song2: 79.082, song3: 77.511 } },
-  ]
-};
-
-// 2025/01/01 Data
-const PRESET_20250101: Session = {
-  id: 'preset-20250101',
-  date: '2025-01-01T13:00:00.000Z',
-  name: '20250101_カラオケバトル',
-  location: 'ラウンドワン ららぽーと和泉店',
-  isFinished: true,
-  participants: [
-    { id: 'preset-0101-takaharu', name: 'タカハル', handicap: 3.0, scores: { song1: 89.046, song2: 89.609, song3: 89.260 } },
-    { id: 'preset-0101-nobuko', name: 'ノブコ', handicap: 15.0, scores: { song1: 87.270, song2: 85.965, song3: 85.114 } },
-    { id: 'preset-0101-kohei', name: 'コウヘイ', handicap: 3.0, scores: { song1: 92.547, song2: 94.540, song3: 92.420 } },
-    { id: 'preset-0101-sayaka', name: 'サヤカ', handicap: 0.0, scores: { song1: 91.569, song2: 91.153, song3: 90.657 } },
-    { id: 'preset-0101-ryo', name: 'リョウ', handicap: 4.0, scores: { song1: 92.082, song2: 93.922, song3: 91.754 } },
-    { id: 'preset-0101-rie', name: 'リエ', handicap: 4.0, scores: { song1: 86.729, song2: 88.888, song3: 85.999 } },
-    { id: 'preset-0101-wataru', name: 'ワタル', handicap: 15.0, scores: { song1: 90.070, song2: 79.051, song3: 85.724 } },
-  ]
-};
-
-// 2024/04/27 Data
-const PRESET_20240427: Session = {
-  id: 'preset-20240427',
-  date: '2024-04-27T13:00:00.000Z',
-  name: '20240427_カラオケバトル',
-  location: 'ラウンドワン ららぽーと和泉店',
-  machineType: '不明',
-  isFinished: true,
-  participants: [
-    { id: 'preset-0427-takaharu', name: 'タカハル', handicap: 5.0, scores: { song1: 87.089, song2: 91.294, song3: 92.057 } },
-    { id: 'preset-0427-nobuko', name: 'ノブコ', handicap: 12.0, scores: { song1: 80.312, song2: 80.768, song3: 79.809 } },
-    { id: 'preset-0427-risa', name: 'リサ', handicap: 8.0, scores: { song1: 89.328, song2: 94.058, song3: 89.946 } },
-    { id: 'preset-0427-kohei', name: 'コウヘイ', handicap: 3.0, scores: { song1: 90.745, song2: 94.486, song3: 87.578 } },
-    { id: 'preset-0427-sayaka', name: 'サヤカ', handicap: 0.0, scores: { song1: 94.187, song2: 91.208, song3: 92.454 } },
-    { id: 'preset-0427-keisuke', name: 'ケイスケ', handicap: 4.0, scores: { song1: 85.138, song2: 85.747, song3: 86.586 } },
-    { id: 'preset-0427-ryo', name: 'リョウ', handicap: 0.0, scores: { song1: 91.165, song2: 89.826, song3: 88.389 } },
-    { id: 'preset-0427-rie', name: 'リエ', handicap: 5.0, scores: { song1: 87.768, song2: 86.791, song3: 88.443 } },
-    { id: 'preset-0427-saki', name: 'サキ', handicap: 20.0, scores: { song1: 76.768, song2: 72.264, song3: 77.025 } },
-    { id: 'preset-0427-wataru', name: 'ワタル', handicap: 20.0, scores: { song1: 79.347, song2: 0, song3: 0 } },
-  ]
-};
-
-// 2024/02/23 Data
-const PRESET_20240223: Session = {
-  id: 'preset-20240223',
-  date: '2024-02-23T13:00:00.000Z',
-  name: '20240223_カラオケバトル',
-  location: 'ラウンドワン ららぽーと和泉店',
-  machineType: '不明',
-  isFinished: true,
-  participants: [
-    { id: 'preset-0223-takaharu', name: 'タカハル', handicap: 5.0, scores: { song1: 89.663, song2: 81.754, song3: 87.771 } },
-    { id: 'preset-0223-nobuko', name: 'ノブコ', handicap: 15.0, scores: { song1: 75.325, song2: 82.331, song3: 82.984 } },
-    { id: 'preset-0223-kohei', name: 'コウヘイ', handicap: 0.0, scores: { song1: 88.787, song2: 86.543, song3: 91.160 } },
-    { id: 'preset-0223-sayaka', name: 'サヤカ', handicap: 1.0, scores: { song1: 91.661, song2: 92.308, song3: 90.308 } },
-    { id: 'preset-0223-keisuke', name: 'ケイスケ', handicap: 11.0, scores: { song1: 89.030, song2: 90.007, song3: 82.990 } },
-    { id: 'preset-0223-risa', name: 'リサ', handicap: 5.0, scores: { song1: 87.841, song2: 81.127, song3: 82.941 } },
-    { id: 'preset-0223-ryo', name: 'リョウ', handicap: 5.0, scores: { song1: 93.272, song2: 93.653, song3: 88.412 } },
-    { id: 'preset-0223-rie', name: 'リエ', handicap: 10.0, scores: { song1: 85.751, song2: 89.740, song3: 84.310 } },
-    { id: 'preset-0223-saki', name: 'サキ', handicap: 20.0, scores: { song1: 75.186, song2: 67.971, song3: 69.078 } },
-    { id: 'preset-0223-wataru', name: 'ワタル', handicap: 20.0, scores: { song1: 0, song2: 0, song3: 0 } },
-  ]
-};
-
-const INITIAL_DATA: Session[] = [PRESET_20250823, PRESET_20250101, PRESET_20240427, PRESET_20240223];
-
 export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [masterList, setMasterList] = useState<string[]>(INITIAL_MASTERS);
+  const [masterList, setMasterList] = useState<string[]>();
   const [view, setView] = useState<ViewState>('HISTORY');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   
@@ -173,64 +84,27 @@ export default function App() {
   // Delete State
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // Load data on mount
+  // Firebaseからデータをリアルタイムに読み込む
   useEffect(() => {
-    const savedSessions = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedSessions) {
-      try {
-        let parsed: Session[] = JSON.parse(savedSessions);
-        
-        // Ensure presets exist or update specific fields
-        let hasChanges = false;
-        INITIAL_DATA.forEach(preset => {
-          const index = parsed.findIndex(s => s.id === preset.id);
-          if (index === -1) {
-            // Add new preset
-            parsed.push(preset);
-            hasChanges = true;
-          } else {
-            // Update location for 20250823 if it matches the ID
-            if (preset.id === 'preset-20250823') {
-              // Always update location to match the new request even if local storage is old
-              if (parsed[index].location !== preset.location) {
-                parsed[index].location = preset.location;
-                hasChanges = true;
-              }
-            }
-          }
-        });
+    // 大会データの購読
+    const unsubscribeSessions = onSessionsChange((data) => {
+      setSessions(data);
+    });
 
-        if (hasChanges) {
-           parsed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        }
-
-        setSessions(parsed);
-      } catch (e) { 
-        console.error(e); 
-        setSessions(INITIAL_DATA);
+    // 参加者マスターの読み込み
+    const fetchMasters = async () => {
+      const masters = await getMasterList();
+      if (masters && masters.length > 0) {
+        setMasterList(masters);
       }
-    } else {
-      setSessions(INITIAL_DATA);
-    }
-    
-    const savedMasters = localStorage.getItem(MASTER_STORAGE_KEY);
-    if (savedMasters) {
-      try {
-        setMasterList(JSON.parse(savedMasters));
-      } catch (e) { console.error(e); }
-    }
+    };
+    fetchMasters();
+
+    // クリーンアップ関数（画面を閉じるときに接続を切る）
+    return () => {
+      unsubscribeSessions();
+    };
   }, []);
-
-  // Save data on change
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sessions));
-    }
-  }, [sessions]);
-
-  useEffect(() => {
-    localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(masterList));
-  }, [masterList]);
 
   // Derived state
   const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -297,9 +171,11 @@ export default function App() {
 
   const addNewMaster = () => {
     if (newMasterName && !masterList.includes(newMasterName)) {
-      setMasterList([...masterList, newMasterName]);
+      const newList = [...masterList, newMasterName];
+      setMasterList(newList);
+      saveMasterListToDB(newList);
       setNewMasterName('');
-    }
+    }    
   };
 
   const createSession = () => {
@@ -322,22 +198,20 @@ export default function App() {
       })),
       isFinished: false
     };
-    setSessions(prev => [newSession, ...prev]);
+    saveSession(newSession);
     setActiveSessionId(newSession.id);
     setView('ACTIVE');
   };
 
   const updateScore = (participantId: string, scores: ScoreData) => {
-    if (!activeSessionId) return;
-    setSessions(prev => prev.map(s => {
-      if (s.id !== activeSessionId) return s;
-      return {
-        ...s,
-        participants: s.participants.map(p => 
-          p.id === participantId ? { ...p, scores } : p
-        )
-      };
-    }));
+    if (!activeSession) return;
+    const updatedSession = {
+      ...activeSession,
+      participants: activeSession.participants.map(p => 
+        p.id === participantId ? { ...p, scores } : p
+      )
+    };
+    saveSession(updatedSession);
   };
 
   const openScoreModal = (participantId: string) => {
@@ -346,24 +220,10 @@ export default function App() {
   };
 
   const finishSession = () => {
-    if (!activeSessionId) return;
-    setSessions(prev => prev.map(s => {
-      if (s.id !== activeSessionId) return s;
-      return { ...s, isFinished: true };
-    }));
-    setView('DETAILS');
-  };
-
-  const generateSummary = async () => {
     if (!activeSession) return;
-    setIsGeneratingSummary(true);
-    const summary = await generateSessionSummary(rankings, activeSession.name);
-    
-    setSessions(prev => prev.map(s => {
-      if (s.id !== activeSessionId) return s;
-      return { ...s, aiSummary: summary };
-    }));
-    setIsGeneratingSummary(false);
+    const updatedSession = { ...activeSession, isFinished: true };
+    saveSession(updatedSession);
+    setView('DETAILS');
   };
 
   const deleteSession = (e: React.MouseEvent, id: string) => {
@@ -374,7 +234,7 @@ export default function App() {
 
   const executeDelete = () => {
     if (deleteTargetId) {
-      setSessions(prev => prev.filter(s => s.id !== deleteTargetId));
+      deleteSessionFromDB(deleteTargetId);
       setDeleteTargetId(null);
     }
   };
@@ -642,28 +502,7 @@ export default function App() {
                )}
             </div>
           </div>
-          {readonly && !activeSession.aiSummary && (
-             <button 
-               onClick={generateSummary}
-               disabled={isGeneratingSummary}
-               className="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-2 rounded-full border border-indigo-500/30 flex items-center gap-1 whitespace-nowrap"
-             >
-               {isGeneratingSummary ? '生成中' : 'AI実況'}
-             </button>
-          )}
         </div>
-
-        {activeSession.aiSummary && (
-          <Card className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/30">
-            <div className="flex items-center gap-2 mb-2 text-indigo-300">
-              <span className="text-lg">🤖</span>
-              <span className="text-xs font-bold uppercase tracking-wider">AI 実況解説</span>
-            </div>
-            <p className="text-sm text-slate-200 leading-relaxed">
-              {activeSession.aiSummary}
-            </p>
-          </Card>
-        )}
         
         {/* Handicap Rule Label (Only in Results View) */}
         {readonly && (
