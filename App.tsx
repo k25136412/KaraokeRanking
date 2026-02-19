@@ -53,6 +53,12 @@ const IconMusicNote = () => (
   </svg>
 );
 
+const IconRestore = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+  </svg>
+);
+
 const LOCAL_STORAGE_KEY = 'karaoke_app_data_v1';
 const MASTER_STORAGE_KEY = 'karaoke_app_master_v1';
 
@@ -61,13 +67,13 @@ export default function App() {
   const [masterList, setMasterList] = useState<string[]>();
   const [view, setView] = useState<ViewState>('HISTORY');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  
+
   // Setup State
   const [setupName, setSetupName] = useState('');
   const [setupDate, setSetupDate] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
   const [setupMachine, setSetupMachine] = useState('');
-  
+
   const [setupParticipants, setSetupParticipants] = useState<{ name: string; handicap: number }[]>([]);
   const [newMasterName, setNewMasterName] = useState('');
 
@@ -83,6 +89,7 @@ export default function App() {
 
   // Delete State
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [hardDeleteTargetId, setHardDeleteTargetId] = useState<string | null>(null);
 
   // Firebaseからデータをリアルタイムに読み込む
   useEffect(() => {
@@ -142,12 +149,12 @@ export default function App() {
 
   const startNewSession = () => {
     setSetupName(`カラオケ大会 ${new Date().toLocaleDateString('ja-JP')}`);
-    
+
     // Default to current time for datetime-local (requires yyyy-MM-ddThh:mm)
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setSetupDate(now.toISOString().slice(0, 16));
-    
+
     setSetupLocation('');
     setSetupMachine('');
     setSetupParticipants([]);
@@ -175,12 +182,12 @@ export default function App() {
       setMasterList(newList);
       saveMasterListToDB(newList);
       setNewMasterName('');
-    }    
+    }
   };
 
   const createSession = () => {
     if (setupParticipants.length === 0) return;
-    
+
     // Parse the local datetime string to ISO
     const sessionDate = setupDate ? new Date(setupDate).toISOString() : new Date().toISOString();
 
@@ -207,7 +214,7 @@ export default function App() {
     if (!activeSession) return;
     const updatedSession = {
       ...activeSession,
-      participants: activeSession.participants.map(p => 
+      participants: activeSession.participants.map(p =>
         p.id === participantId ? { ...p, scores } : p
       )
     };
@@ -234,8 +241,31 @@ export default function App() {
 
   const executeDelete = () => {
     if (deleteTargetId) {
-      deleteSessionFromDB(deleteTargetId);
+      // ▼ 物理削除ではなく、論理削除（isDeleted: true）にする
+      setSessions(prev => prev.map(s =>
+        s.id === deleteTargetId ? { ...s, isDeleted: true } : s
+      ));
       setDeleteTargetId(null);
+    }
+  };
+
+  const restoreSession = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSessions(prev => prev.map(s =>
+      s.id === id ? { ...s, isDeleted: false } : s
+    ));
+  };
+
+  const confirmHardDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setHardDeleteTargetId(id);
+  };
+
+  const executeHardDelete = () => {
+    if (hardDeleteTargetId) {
+      // ここで本当にデータを消し去る
+      setSessions(prev => prev.filter(s => s.id !== hardDeleteTargetId));
+      setHardDeleteTargetId(null);
     }
   };
 
@@ -272,84 +302,143 @@ export default function App() {
 
   // --- Views ---
 
-  const renderHistory = () => (
-    <div className="space-y-6 pb-20 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-400">
-          履歴一覧
-        </h1>
-        <div className="text-sm text-slate-400">{sessions.length} 件</div>
-      </div>
+  const renderHistory = () => {
+    // ▼ 削除されていないものだけをフィルタリング
+    const activeSessions = sessions.filter(s => !s.isDeleted);
 
-      {sessions.length === 0 ? (
-        <div className="text-center py-20 text-slate-500">
-          <div className="mb-4 inline-block p-4 bg-slate-800 rounded-full">
-            <IconMic />
-          </div>
-          <p>まだ履歴がありません</p>
-          <p className="text-sm mt-2">「新規作成」から始めましょう</p>
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-400">
+            履歴一覧
+          </h1>
+          {/* ▼ ゴミ箱ボタンを追加 */}
+          <button
+            onClick={() => setView('DELETED_HISTORY')}
+            className="text-xs text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700"
+          >
+            <IconTrash /> ゴミ箱
+          </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {sessions.map(session => (
-            <Card 
-              key={session.id} 
-              onClick={() => {
-                setActiveSessionId(session.id);
-                setView(session.isFinished ? 'DETAILS' : 'ACTIVE');
-              }}
-              className="relative group pr-12"
-            >
-              <div className="flex flex-col gap-1">
-                 <div className="flex items-center justify-between">
+
+        {activeSessions.length === 0 ? (
+          <div className="text-center py-20 text-slate-500">
+            <div className="mb-4 inline-block p-4 bg-slate-800 rounded-full">
+              <IconMic />
+            </div>
+            <p>まだ履歴がありません</p>
+            <p className="text-sm mt-2">「新規作成」から始めましょう</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activeSessions.map(session => (
+              <Card
+                key={session.id}
+                onClick={() => {
+                  setActiveSessionId(session.id);
+                  setView(session.isFinished ? 'DETAILS' : 'ACTIVE');
+                }}
+                className="relative group pr-12"
+              >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
                     <h3 className="font-bold text-lg text-white">{session.name}</h3>
-                 </div>
-                 
-                 <div className="flex flex-col gap-1 mt-1 text-sm text-slate-400">
+                  </div>
+
+                  <div className="flex flex-col gap-1 mt-1 text-sm text-slate-400">
                     <div className="flex items-center gap-3">
                       <span>{formatDate(session.date)}</span>
                       <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
                       <span>{session.participants.length}人</span>
                     </div>
-                    {session.location && (
-                       <div className="flex items-center gap-1 text-xs text-slate-500">
-                          <IconMapPin />
-                          <span>{session.location}</span>
-                       </div>
-                    )}
-                 </div>
+                  </div>
 
-                 {session.isFinished && (
-                   <div className="absolute top-4 right-14">
+                  {session.isFinished && (
+                    <div className="absolute top-4 right-14">
                       <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded font-medium border border-indigo-500/20">
                         完了
                       </span>
-                   </div>
-                 )}
-              </div>
-
-              <button 
-                type="button"
-                onClick={(e) => deleteSession(e, session.id)}
-                className="absolute top-4 right-4 p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-full transition-colors z-20 border border-slate-700 shadow-sm"
-                aria-label="削除"
-              >
-                <div className="pointer-events-none">
-                  <IconTrash />
+                    </div>
+                  )}
                 </div>
-              </button>
-            </Card>
-          ))}
-        </div>
-      )}
 
-      <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
-        <Button fullWidth onClick={startNewSession} className="shadow-2xl shadow-indigo-500/30">
-          + 新規大会を作成
-        </Button>
+                <button
+                  type="button"
+                  onClick={(e) => deleteSession(e, session.id)}
+                  className="absolute top-4 right-4 p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-full transition-colors z-20 border border-slate-700 shadow-sm"
+                  aria-label="削除"
+                >
+                  <div className="pointer-events-none">
+                    <IconTrash />
+                  </div>
+                </button>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
+          <Button fullWidth onClick={startNewSession} className="shadow-2xl shadow-indigo-500/30">
+            + 新規大会を作成
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const renderDeletedHistory = () => {
+    // 削除フラグが立っているものだけをフィルタリング
+    const deletedSessions = sessions.filter(s => s.isDeleted);
+
+    return (
+      <div className="space-y-6 pb-20 animate-fade-in">
+        <div className="flex items-center gap-2 mb-4">
+          <button onClick={() => setView('HISTORY')} className="p-2 -ml-2 text-slate-400 hover:text-white">
+            <IconChevronLeft />
+          </button>
+          <h2 className="text-xl font-bold text-white">ゴミ箱（削除済み）</h2>
+        </div>
+
+        {deletedSessions.length === 0 ? (
+          <div className="text-center py-20 text-slate-500">
+            <p>ゴミ箱は空です</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {deletedSessions.map(session => (
+              <Card key={session.id} className="relative group pr-24 opacity-60">
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-bold text-lg text-white line-through decoration-slate-500">{session.name}</h3>
+                  <div className="flex items-center gap-3 text-sm text-slate-400">
+                    <span>{formatDate(session.date)}</span>
+                  </div>
+                </div>
+
+                <div className="absolute top-1/2 -translate-y-1/2 right-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => restoreSession(e, session.id)}
+                    className="p-2 text-indigo-400 hover:text-indigo-300 bg-slate-800 rounded-full transition-colors border border-slate-700 shadow-sm"
+                    title="復元する"
+                  >
+                    <IconRestore />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => confirmHardDelete(e, session.id)}
+                    className="p-2 text-red-400 hover:text-red-300 bg-slate-800 rounded-full transition-colors border border-slate-700 shadow-sm"
+                    title="完全に削除"
+                  >
+                    <IconTrash />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderSetup = () => (
     <div className="space-y-6 pb-20 animate-fade-in">
@@ -361,25 +450,25 @@ export default function App() {
       </div>
 
       <Card className="space-y-4">
-        <Input 
+        <Input
           label="大会名"
           value={setupName}
           onChange={(e) => setSetupName(e.target.value)}
           placeholder="例: 〇〇忘年会"
         />
-        <Input 
+        <Input
           label="日時"
           type="datetime-local"
           value={setupDate}
           onChange={(e) => setSetupDate(e.target.value)}
         />
-        <Input 
+        <Input
           label="場所"
           value={setupLocation}
           onChange={(e) => setSetupLocation(e.target.value)}
           placeholder="例: カラオケ館 新宿店"
         />
-        <Input 
+        <Input
           label="カラオケ機種"
           value={setupMachine}
           onChange={(e) => setSetupMachine(e.target.value)}
@@ -391,7 +480,7 @@ export default function App() {
         <div className="flex justify-between items-end mb-2">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">参加メンバー選択</h3>
         </div>
-        
+
         {/* Master List Grid */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           {masterList.map(name => {
@@ -400,22 +489,21 @@ export default function App() {
               <button
                 key={name}
                 onClick={() => toggleParticipantInSetup(name)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${
-                  isSelected 
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${isSelected
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
               >
                 {isSelected ? '✓ ' : '+ '}{name}
               </button>
             );
           })}
         </div>
-        
+
         {/* Add New Master */}
         <div className="flex gap-2 mb-6">
-          <Input 
-            placeholder="新しいメンバー名" 
+          <Input
+            placeholder="新しいメンバー名"
             value={newMasterName}
             onChange={(e) => setNewMasterName(e.target.value)}
             className="text-sm py-2"
@@ -428,42 +516,43 @@ export default function App() {
         {/* Selected Participants List with Handicap Input */}
         {setupParticipants.length > 0 && (
           <div className="space-y-3">
-             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1 mt-6">
-               ハンデ設定 ({setupParticipants.length}名)
-             </h3>
-             <div className="space-y-2">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1 mt-6">
+              ハンデ設定 ({setupParticipants.length}名)
+            </h3>
+            <div className="space-y-2">
               {setupParticipants.map((p, idx) => {
                 const recentHandicap = getLastHandicap(p.name);
                 return (
-                <div key={idx} className="flex items-center gap-3 bg-surface px-4 py-3 rounded-xl border border-slate-700/50">
-                  <span className="font-bold text-white flex-1">{p.name}</span>
-                  
-                  {/* Recent Handicap Label */}
-                  <div className="flex flex-col items-end mr-2 px-2 py-1 bg-slate-800 rounded border border-slate-700">
-                     <span className="text-[9px] text-slate-400 leading-none mb-0.5">前回</span>
-                     <span className="text-xs font-mono text-pink-300 font-bold leading-none">+{recentHandicap}</span>
-                  </div>
+                  <div key={idx} className="flex items-center gap-3 bg-surface px-4 py-3 rounded-xl border border-slate-700/50">
+                    <span className="font-bold text-white flex-1">{p.name}</span>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">今回H</span>
-                    <input 
-                      type="number"
-                      className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right text-white focus:border-indigo-500 outline-none"
-                      placeholder="0"
-                      value={p.handicap}
-                      onChange={(e) => updateSetupHandicap(p.name, e.target.value)}
-                    />
+                    {/* Recent Handicap Label */}
+                    <div className="flex flex-col items-end mr-2 px-2 py-1 bg-slate-800 rounded border border-slate-700">
+                      <span className="text-[9px] text-slate-400 leading-none mb-0.5">前回</span>
+                      <span className="text-xs font-mono text-pink-300 font-bold leading-none">+{recentHandicap}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">今回H</span>
+                      <input
+                        type="number"
+                        className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right text-white focus:border-indigo-500 outline-none"
+                        placeholder="0"
+                        value={p.handicap}
+                        onChange={(e) => updateSetupHandicap(p.name, e.target.value)}
+                      />
+                    </div>
                   </div>
-                </div>
-              );})}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
 
       <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
-        <Button 
-          fullWidth 
+        <Button
+          fullWidth
           onClick={createSession}
           disabled={setupParticipants.length === 0 || !setupName}
         >
@@ -485,25 +574,25 @@ export default function App() {
           <div className="flex-1">
             <h2 className="text-lg font-bold text-white leading-tight">{activeSession.name}</h2>
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-               <span className="text-xs text-slate-400">
-                 {formatDate(activeSession.date)}
-               </span>
-               {activeSession.location && (
-                 <span className="text-xs text-slate-400 flex items-center gap-1">
-                   <IconMapPin />
-                   {activeSession.location}
-                 </span>
-               )}
-               {activeSession.machineType && (
-                 <span className="text-xs text-slate-400 flex items-center gap-1">
-                   <IconMusicNote />
-                   {activeSession.machineType}
-                 </span>
-               )}
+              <span className="text-xs text-slate-400">
+                {formatDate(activeSession.date)}
+              </span>
+              {activeSession.location && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <IconMapPin />
+                  {activeSession.location}
+                </span>
+              )}
+              {activeSession.machineType && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <IconMusicNote />
+                  {activeSession.machineType}
+                </span>
+              )}
             </div>
           </div>
         </div>
-        
+
         {/* Handicap Rule Label (Only in Results View) */}
         {readonly && (
           <div className="text-right text-[10px] text-slate-400 px-2 -mb-1">
@@ -515,18 +604,18 @@ export default function App() {
           {rankings.map((r, index) => {
             const isTop = index === 0;
             const medalColor = index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-slate-500';
-            
+
             return (
-              <Card 
-                key={r.id} 
+              <Card
+                key={r.id}
                 className={`relative overflow-hidden transition-all ${isTop ? 'border-yellow-500/30 bg-yellow-500/5' : ''}`}
                 // ENABLE EDITING: Always allow click to edit score, even if finished
                 onClick={() => openScoreModal(r.id)}
               >
                 {/* Progress bar background for songs played */}
                 <div className="absolute bottom-0 left-0 h-1 bg-indigo-500/20 w-full">
-                  <div 
-                    className="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-500" 
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-500"
                     style={{ width: `${(r.gamesPlayed / 3) * 100}%` }}
                   />
                 </div>
@@ -535,7 +624,7 @@ export default function App() {
                   <div className={`flex flex-col items-center justify-center w-8 ${medalColor}`}>
                     {isTop ? <IconTrophy /> : <span className="text-2xl font-black font-mono">{r.rank}</span>}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-bold text-white truncate text-lg mr-2">{r.name}</h3>
@@ -543,18 +632,17 @@ export default function App() {
                         Hdcp: +{r.handicap}
                       </div>
                     </div>
-                    
+
                     {/* Song Scores */}
                     <div className="flex gap-2 text-sm text-slate-500 font-mono">
                       {[r.scores.song1, r.scores.song2, r.scores.song3].map((s, i) => {
                         // Highlight if this song is the global max
                         const isMax = typeof s === 'number' && s > 0 && s === globalMaxSongScore;
                         return (
-                          <div 
-                            key={i} 
-                            className={`flex-1 text-center py-1 rounded relative ${
-                              s ? (isMax ? 'bg-red-500/20 text-red-400 font-black border border-red-500/50' : 'bg-slate-800 text-indigo-300') : 'bg-slate-800/30 text-slate-600'
-                            }`}
+                          <div
+                            key={i}
+                            className={`flex-1 text-center py-1 rounded relative ${s ? (isMax ? 'bg-red-500/20 text-red-400 font-black border border-red-500/50' : 'bg-slate-800 text-indigo-300') : 'bg-slate-800/30 text-slate-600'
+                              }`}
                           >
                             {s || '-'}
                           </div>
@@ -565,13 +653,13 @@ export default function App() {
 
                   {/* Score Display */}
                   <div className="text-right pl-2 flex flex-col items-end">
-                     {/* Pre-handicap Score (Average) */}
-                     <div className="flex items-center gap-1 mb-1">
-                        <span className="text-[10px] text-slate-500">素点Avg</span>
-                        <span className="text-sm font-bold text-slate-300 font-mono">{r.average.toFixed(3)}</span>
-                     </div>
-                     
-                     {/* Final Score */}
+                    {/* Pre-handicap Score (Average) */}
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[10px] text-slate-500">素点Avg</span>
+                      <span className="text-sm font-bold text-slate-300 font-mono">{r.average.toFixed(3)}</span>
+                    </div>
+
+                    {/* Final Score */}
                     <div className="text-2xl font-black text-white tracking-tighter leading-none">
                       {r.finalScore.toFixed(3)}
                     </div>
@@ -588,11 +676,11 @@ export default function App() {
             );
           })}
         </div>
-        
+
         {!readonly && (
           <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto space-y-3">
-             {/* Test Data Button */}
-             <Button fullWidth onClick={fillTestData} variant="secondary" className="opacity-80">
+            {/* Test Data Button */}
+            <Button fullWidth onClick={fillTestData} variant="secondary" className="opacity-80">
               ⚡ テストデータ入力
             </Button>
 
@@ -633,26 +721,39 @@ export default function App() {
     );
   }
 
+  // ... (パスワード画面のロジックなどがある場所)
+
   return (
     <div className="min-h-screen max-w-md mx-auto bg-dark p-6 font-sans">
       {view === 'HISTORY' && renderHistory()}
       {view === 'SETUP' && renderSetup()}
       {view === 'ACTIVE' && renderActive(false)}
       {view === 'DETAILS' && renderActive(true)}
+      {view === 'DELETED_HISTORY' && renderDeletedHistory()} {/* ←追加 */}
 
-      <ScoreModal 
+      <ScoreModal
         isOpen={scoreModalOpen}
         participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null}
         onClose={() => setScoreModalOpen(false)}
         onSave={updateScore}
       />
 
-      <ConfirmModal 
+      {/* 通常の削除（ゴミ箱へ移動） */}
+      <ConfirmModal
         isOpen={!!deleteTargetId}
         title="履歴の削除"
-        message="この履歴を削除してもよろしいですか？この操作は取り消せません。"
+        message="この履歴をゴミ箱に移動しますか？（後で復元可能です）"
         onConfirm={executeDelete}
         onCancel={() => setDeleteTargetId(null)}
+      />
+
+      {/* 完全削除 */}
+      <ConfirmModal
+        isOpen={!!hardDeleteTargetId}
+        title="完全に削除"
+        message="この履歴を完全に削除します。この操作は取り消せません。本当によろしいですか？"
+        onConfirm={executeHardDelete}
+        onCancel={() => setHardDeleteTargetId(null)}
       />
     </div>
   );

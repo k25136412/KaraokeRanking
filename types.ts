@@ -19,9 +19,10 @@ export interface Session {
   machineType?: string;
   participants: Participant[];
   isFinished: boolean;
+  isDeleted?: boolean;
 }
 
-export type ViewState = 'HISTORY' | 'SETUP' | 'ACTIVE' | 'DETAILS';
+export type ViewState = 'HISTORY' | 'SETUP' | 'ACTIVE' | 'DETAILS' | 'DELETED_HISTORY';
 
 export interface RankingItem extends Participant {
   average: number;
