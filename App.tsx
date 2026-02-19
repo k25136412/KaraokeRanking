@@ -164,6 +164,11 @@ export default function App() {
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passError, setPassError] = useState(false);
+
+  const COMMON_PASSWORD = "4646"; // ★ここに好きな4桁の番号を設定してください
 
   // Delete State
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -392,6 +397,17 @@ export default function App() {
         })
       };
     }));
+  };
+
+  const handleAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === COMMON_PASSWORD) {
+      setIsAuthorized(true);
+      setPassError(false);
+    } else {
+      setPassError(true);
+      setPasswordInput('');
+    }
   };
 
   // --- Views ---
@@ -749,6 +765,34 @@ export default function App() {
       </div>
     );
   };
+
+  // 認証されていない場合に表示する画面
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen max-w-md mx-auto bg-dark flex items-center justify-center p-6 font-sans">
+        <Card className="w-full space-y-6 text-center">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-white">カラオケランキング</h2>
+            <p className="text-sm text-slate-400">4桁のパスワードを入力してください</p>
+          </div>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className={`w-full bg-slate-900 border ${passError ? 'border-red-500' : 'border-slate-700'} text-white text-center text-3xl tracking-widest rounded-lg py-4 focus:outline-none focus:border-indigo-500`}
+              placeholder="****"
+              autoFocus
+            />
+            {passError && <p className="text-red-400 text-xs">パスワードが違います</p>}
+            <Button fullWidth type="submit">ログイン</Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen max-w-md mx-auto bg-dark p-6 font-sans">
