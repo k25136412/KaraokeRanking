@@ -20,7 +20,7 @@ export default function App() {
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  
+
   const [setupName, setSetupName] = useState('');
   const [setupDate, setSetupDate] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
@@ -34,6 +34,20 @@ export default function App() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const COMMON_PASSWORD = "4646";
+
+  const pastLocations = useMemo(() => {
+    // 過去の大会データから場所だけを取り出し、空欄のものを除外
+    const locs = sessions.map(s => s.location).filter((l): l is string => !!l && l.trim() !== '');
+    // 重複をなくす
+    return Array.from(new Set(locs));
+  }, [sessions]);
+
+  const pastMachines = useMemo(() => {
+    // 過去の大会データから機種だけを取り出し、空欄のものを除外
+    const machines = sessions.map(s => s.machineType).filter((m): m is string => !!m && m.trim() !== '');
+    // デフォルトの 'DAM' と 'JOYSOUND' を先頭に入れつつ、重複をなくす
+    return Array.from(new Set(['DAM', 'JOYSOUND', ...machines]));
+  }, [sessions]);
 
   // --- ナビゲーション管理 ---
   const navigateTo = useCallback((nextView: ViewState, id: string | null = null) => {
@@ -80,6 +94,8 @@ export default function App() {
     setSetupName(`カラオケ大会 ${new Date().toLocaleDateString('ja-JP')}`);
     const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setSetupDate(now.toISOString().slice(0, 16));
+    setSetupLocation('');
+    setSetupMachine('');
     setSetupParticipants([]);
     navigateTo('SETUP');
   };
@@ -117,6 +133,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen max-w-md mx-auto bg-dark p-6 font-sans">
+      
+      {/* --- 履歴一覧画面 --- */}
       {view === 'HISTORY' && (
         <div className="space-y-6 pb-20 animate-fade-in">
           <div className="flex items-center justify-between">
@@ -136,31 +154,80 @@ export default function App() {
         </div>
       )}
 
+      {/* --- 大会情報（進行中・詳細）画面 --- */}
       {(view === 'ACTIVE' || view === 'DETAILS') && activeSession && (
         <div className="space-y-6 pb-24 animate-fade-in">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button>
-            <div className="flex-1">
-              <h2 className="text-lg font-bold text-white truncate">{activeSession.name}</h2>
-              <p className="text-xs text-slate-400">{formatDate(activeSession.date)}</p>
-            </div>
+            <h2 className="text-lg font-bold text-white truncate">大会情報</h2>
           </div>
-          <div className="space-y-3">
+          
+          <Card className="space-y-4">
+            <Input 
+              label="大会名" 
+              value={activeSession.name} 
+              onChange={(e) => saveSession({ ...activeSession, name: e.target.value })} 
+            />
+            <Input 
+              label="日時" 
+              type="datetime-local" 
+              value={activeSession.date ? new Date(new Date(activeSession.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} 
+              onChange={(e) => {
+                if (e.target.value) {
+                  saveSession({ ...activeSession, date: new Date(e.target.value).toISOString() });
+                }
+              }} 
+            />
+            <Input 
+              label="場所" 
+              list="location-list" 
+              value={activeSession.location || ''} 
+              onChange={(e) => saveSession({ ...activeSession, location: e.target.value })} 
+              placeholder="例: ラウンドワン" 
+            />
+            <datalist id="location-list">{pastLocations.map(loc => <option key={loc} value={loc} />)}</datalist>
+
+            <Input 
+              label="機種" 
+              list="machine-list" 
+              value={activeSession.machineType || ''} 
+              onChange={(e) => saveSession({ ...activeSession, machineType: e.target.value })} 
+              placeholder="例: DAM" 
+            />
+            <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
+          </Card>
+
+          <div className="space-y-3 mt-6">
             {rankings.map((r, i) => (
               <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
             ))}
           </div>
-          {view === 'ACTIVE' && <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto"><Button fullWidth onClick={() => { saveSession({ ...activeSession, isFinished: true }); navigateTo('DETAILS', activeSession.id); }} variant="primary">大会を終了</Button></div>}
+
+          {view === 'ACTIVE' && (
+            <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
+              <Button fullWidth onClick={() => { saveSession({ ...activeSession, isFinished: true }); navigateTo('HISTORY'); }}>大会を終了する</Button>
+            </div>
+          )}
         </div>
       )}
 
+      {/* --- 新規大会作成（SETUP）画面 --- */}
       {view === 'SETUP' && (
-        <div className="space-y-6 pb-20 animate-fade-in">
-          <div className="flex items-center gap-2 mb-4"><button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button><h2 className="text-xl font-bold text-white">新規セットアップ</h2></div>
+        <div className="space-y-6 pb-24 animate-fade-in">
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button>
+            <h2 className="text-xl font-bold text-white">新規大会の作成</h2>
+          </div>
+
           <Card className="space-y-4">
             <Input label="大会名" value={setupName} onChange={(e) => setSetupName(e.target.value)} />
             <Input label="日時" type="datetime-local" value={setupDate} onChange={(e) => setSetupDate(e.target.value)} />
+            <Input label="場所" value={setupLocation} onChange={(e) => setSetupLocation(e.target.value)} list="location-list" placeholder="例: ラウンドワン" />
+            <datalist id="location-list">{pastLocations.map(loc => <option key={loc} value={loc} />)}</datalist>
+            <Input label="機種" value={setupMachine} onChange={(e) => setSetupMachine(e.target.value)} list="machine-list" placeholder="例: DAM" />
+            <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
           </Card>
+
           <div className="grid grid-cols-2 gap-2 mt-6">
             {masterList.map(name => (
               <button key={name} onClick={() => {
@@ -170,7 +237,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* ▼ ここから追加：選択された参加者のハンデキャップ入力欄 ▼ */}
           {setupParticipants.length > 0 && (
             <div className="mt-6 space-y-3">
               <h3 className="text-sm font-bold text-slate-400">参加者とハンデキャップ</h3>
@@ -180,16 +246,11 @@ export default function App() {
                     <span className="font-bold text-white">{p.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-400">Hdcp: +</span>
-                      <input 
-                        type="number" 
-                        step="1"
-                        value={p.handicap}
+                      <input
+                        type="number" step="1" value={p.handicap}
                         onChange={(e) => {
-                          // 入力された数字を保存する処理
                           const newHandicap = parseFloat(e.target.value) || 0;
-                          setSetupParticipants(prev => 
-                            prev.map(sp => sp.name === p.name ? { ...sp, handicap: newHandicap } : sp)
-                          );
+                          setSetupParticipants(prev => prev.map(sp => sp.name === p.name ? { ...sp, handicap: newHandicap } : sp));
                         }}
                         className="w-20 bg-slate-900 border border-slate-600 text-white rounded px-2 py-1 text-right focus:border-indigo-500 outline-none font-mono"
                       />
@@ -199,27 +260,29 @@ export default function App() {
               </div>
             </div>
           )}
-          {/* ▲ ここまで追加 ▲ */}          
+
           <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto"><Button fullWidth onClick={createSession}>大会を開始</Button></div>
         </div>
       )}
 
+      {/* --- ゴミ箱（削除済み履歴）画面 --- */}
       {view === 'DELETED_HISTORY' && (
         <div className="space-y-6 pb-20 animate-fade-in">
           <div className="flex items-center gap-2 mb-4"><button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button><h2 className="text-xl font-bold text-white">ゴミ箱</h2></div>
           {sessions.filter(s => s.isDeleted).map(s => (
             <Card key={s.id} className="opacity-60 flex justify-between items-center">
               <div><h3 className="font-bold text-white line-through">{s.name}</h3><p className="text-xs text-slate-500">{formatDate(s.date)}</p></div>
-              <button onClick={() => saveSession({...s, isDeleted: false})} className="text-indigo-400 text-xs">復元</button>
+              <button onClick={() => saveSession({ ...s, isDeleted: false })} className="text-indigo-400 text-xs">復元</button>
             </Card>
           ))}
         </div>
       )}
 
+      {/* --- モーダル（ポップアップ）群 --- */}
       <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => window.history.back()} onSave={(id, scores) => {
         if (activeSession) saveSession({ ...activeSession, participants: activeSession.participants.map(p => p.id === id ? { ...p, scores } : p) });
       }} />
-      
+
       {previewImageUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4" onClick={() => window.history.back()}>
           <img src={previewImageUrl} alt="Evidence" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()} />
