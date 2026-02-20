@@ -26,10 +26,9 @@ export const storage = getStorage(app);
 
 export { database };
 
-// 画像をアップロードしてURLを返す関数
 export const uploadScoreImage = async (participantId: string, songNumber: number, base64Image: string): Promise<string> => {
   const storageRef = ref(storage, `scores/${participantId}_song${songNumber}_${Date.now()}.jpg`);
-  // "data:image/jpeg;base64,..." の部分を除いてアップロード
-  const result = await uploadString(storageRef, base64Image.split(',')[1], 'base64');
+  // ★修正：'data_url' を使うことで、「これは画像ですよ」という情報ごとアップロードされます
+  const result = await uploadString(storageRef, base64Image, 'data_url');
   return await getDownloadURL(result.ref);
 };

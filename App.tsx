@@ -33,19 +33,18 @@ export default function App() {
   const [passError, setPassError] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  // ★ 追加：大会情報の編集モードを管理する状態
+  const [isEditingSession, setIsEditingSession] = useState(false);
+
   const COMMON_PASSWORD = "4646";
 
   const pastLocations = useMemo(() => {
-    // 過去の大会データから場所だけを取り出し、空欄のものを除外
     const locs = sessions.map(s => s.location).filter((l): l is string => !!l && l.trim() !== '');
-    // 重複をなくす
     return Array.from(new Set(locs));
   }, [sessions]);
 
   const pastMachines = useMemo(() => {
-    // 過去の大会データから機種だけを取り出し、空欄のものを除外
     const machines = sessions.map(s => s.machineType).filter((m): m is string => !!m && m.trim() !== '');
-    // デフォルトの 'DAM' と 'JOYSOUND' を先頭に入れつつ、重複をなくす
     return Array.from(new Set(['DAM', 'JOYSOUND', ...machines]));
   }, [sessions]);
 
@@ -82,6 +81,11 @@ export default function App() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const rankings = useMemo(() => activeSession ? generateRanking(activeSession.participants) : [], [activeSession]);
+
+  // ★ 追加：別の大会を開いた時は、必ず編集モードをOFFに戻す安全設計
+  useEffect(() => {
+    setIsEditingSession(false);
+  }, [activeSessionId]);
 
   const getLastHandicap = (name: string): number => {
     const userSessions = sessions.filter(s => s.isFinished && s.participants.some(p => p.name === name))
@@ -157,44 +161,61 @@ export default function App() {
       {/* --- 大会情報（進行中・詳細）画面 --- */}
       {(view === 'ACTIVE' || view === 'DETAILS') && activeSession && (
         <div className="space-y-6 pb-24 animate-fade-in">
-          <div className="flex items-center gap-2 mb-2">
-            <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button>
-            <h2 className="text-lg font-bold text-white truncate">大会情報</h2>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button>
+              <h2 className="text-lg font-bold text-white truncate">大会情報</h2>
+            </div>
+            
+            {/* ▼ ここがポイント！編集モード切り替えボタン ▼ */}
+            <button 
+              onClick={() => setIsEditingSession(!isEditingSession)} 
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isEditingSession ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-indigo-400 border border-indigo-500/30'}`}
+            >
+              {isEditingSession ? (
+                <><span>✓</span><span>完了</span></>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path d="M2.695 14.763l-1.262 3.152a.5.5 0 00.65.65l3.151-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" /></svg>
+                  <span>編集</span>
+                </>
+              )}
+            </button>
+            {/* ▲ ここまで ▲ */}
           </div>
           
           <Card className="space-y-4">
-            <Input 
-              label="大会名" 
-              value={activeSession.name} 
-              onChange={(e) => saveSession({ ...activeSession, name: e.target.value })} 
-            />
-            <Input 
-              label="日時" 
-              type="datetime-local" 
-              value={activeSession.date ? new Date(new Date(activeSession.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} 
-              onChange={(e) => {
-                if (e.target.value) {
-                  saveSession({ ...activeSession, date: new Date(e.target.value).toISOString() });
-                }
-              }} 
-            />
-            <Input 
-              label="場所" 
-              list="location-list" 
-              value={activeSession.location || ''} 
-              onChange={(e) => saveSession({ ...activeSession, location: e.target.value })} 
-              placeholder="例: ラウンドワン" 
-            />
-            <datalist id="location-list">{pastLocations.map(loc => <option key={loc} value={loc} />)}</datalist>
-
-            <Input 
-              label="機種" 
-              list="machine-list" 
-              value={activeSession.machineType || ''} 
-              onChange={(e) => saveSession({ ...activeSession, machineType: e.target.value })} 
-              placeholder="例: DAM" 
-            />
-            <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
+            {isEditingSession ? (
+              // ▼ 編集モードONの時：文字が入力できる欄 ▼
+              <div className="space-y-4 animate-fade-in">
+                <Input label="大会名" value={activeSession.name} onChange={(e) => saveSession({ ...activeSession, name: e.target.value })} />
+                <Input label="日時" type="datetime-local" value={activeSession.date ? new Date(new Date(activeSession.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={(e) => { if (e.target.value) { saveSession({ ...activeSession, date: new Date(e.target.value).toISOString() }); } }} />
+                <Input label="場所" list="location-list" value={activeSession.location || ''} onChange={(e) => saveSession({ ...activeSession, location: e.target.value })} placeholder="例: ラウンドワン" />
+                <datalist id="location-list">{pastLocations.map(loc => <option key={loc} value={loc} />)}</datalist>
+                <Input label="機種" list="machine-list" value={activeSession.machineType || ''} onChange={(e) => saveSession({ ...activeSession, machineType: e.target.value })} placeholder="例: DAM" />
+                <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
+              </div>
+            ) : (
+              // ▼ 編集モードOFFの時：見るだけの綺麗な表示（誤操作防止） ▼
+              <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                <div className="col-span-2">
+                  <div className="text-xs text-slate-400 font-medium ml-1 mb-1">大会名</div>
+                  <div className="text-white font-bold bg-slate-800/30 rounded-lg px-4 py-2.5 border border-slate-700/50">{activeSession.name}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-xs text-slate-400 font-medium ml-1 mb-1">日時</div>
+                  <div className="text-white bg-slate-800/30 rounded-lg px-4 py-2.5 border border-slate-700/50">{formatDate(activeSession.date)}</div>
+                </div>
+                <div className="col-span-1">
+                  <div className="text-xs text-slate-400 font-medium ml-1 mb-1">場所</div>
+                  <div className="text-white bg-slate-800/30 rounded-lg px-4 py-2.5 border border-slate-700/50 truncate">{activeSession.location || '-'}</div>
+                </div>
+                <div className="col-span-1">
+                  <div className="text-xs text-slate-400 font-medium ml-1 mb-1">機種</div>
+                  <div className="text-white bg-slate-800/30 rounded-lg px-4 py-2.5 border border-slate-700/50 truncate">{activeSession.machineType || '-'}</div>
+                </div>
+              </div>
+            )}
           </Card>
 
           <div className="space-y-3 mt-6">
