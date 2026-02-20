@@ -13,10 +13,10 @@ interface ScoreModalProps {
 }
 
 export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onClose, onSave }) => {
-  const [scores, setScores] = useState<ScoreData>({ 
-    song1: '', song1Title: '', 
-    song2: '', song2Title: '', 
-    song3: '', song3Title: '' 
+  const [scores, setScores] = useState<ScoreData>({
+    song1: '', song1Title: '',
+    song2: '', song2Title: '',
+    song3: '', song3Title: ''
   });
   const [isAnalyzing, setIsAnalyzing] = useState<number | null>(null);
 
@@ -66,7 +66,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
       const base64 = reader.result as string;
       const ocrResult = await analyzeScoreImage(base64);
       const imageUrl = await uploadScoreImage(participant.id, index, base64);
-      
+
       let artwork = "";
       if (ocrResult?.songTitle) {
         artwork = await fetchArtwork(ocrResult.songTitle);
@@ -108,19 +108,19 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
             return (
               <div key={index} className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Song #{index + 1}</span>
-                  
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">{index + 1} 曲目</span>
+
                   {/* ★ 修正：ボタンを1つに統合（capture属性なし） */}
                   <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${isAnalyzing === index ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300' : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300'}`}>
                     <span className="text-[10px] font-bold">
                       {isAnalyzing === index ? 'AI解析中...' : '📷 画像を選択'}
                     </span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleImageChange(index, e)} 
-                      disabled={isAnalyzing !== null} 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageChange(index, e)}
+                      disabled={isAnalyzing !== null}
                     />
                   </label>
                 </div>

@@ -12,15 +12,23 @@ export const SongInput: React.FC<SongInputProps> = ({ value, onChange, placehold
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // ▼ 追加：入力欄がフォーカスされているか確認するための参照
+  const inputRef = useRef<HTMLInputElement>(null);
+
   // 入力が変わるたびに検索（デバウンス処理）
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (value.length > 0) {
         const results = await searchSongs(value);
         setSuggestions(results);
-        setIsOpen(results.length > 0);
+
+        // ▼ 変更：入力欄が「現在フォーカスされている状態」の時だけリストを開く！
+        if (document.activeElement === inputRef.current) {
+          setIsOpen(results.length > 0);
+        }
       } else {
         setSuggestions([]);
+        setIsOpen(false);
       }
     }, 500); // 0.5秒入力が止まったら検索
     return () => clearTimeout(timer);
@@ -40,15 +48,21 @@ export const SongInput: React.FC<SongInputProps> = ({ value, onChange, placehold
   return (
     <div ref={wrapperRef} className="relative w-full">
       <input
+        ref={inputRef} // ▼ 追加：参照をセット
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => value.length > 0 && setIsOpen(true)}
+        onFocus={() => {
+          // ▼ 変更：タップしてフォーカスした時、候補があれば開く
+          if (value.length > 0 && suggestions.length > 0) {
+            setIsOpen(true);
+          }
+        }}
         placeholder={placeholder}
         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
       />
       {isOpen && (
-        <ul className="absolute z-50 w-full mt-1 bg-surface border border-slate-600 rounded-lg shadow-2xl max-h-48 overflow-y-auto">
+        <ul className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-48 overflow-y-auto">
           {suggestions.map((song, i) => (
             <li
               key={i}
