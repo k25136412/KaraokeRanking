@@ -8,9 +8,9 @@ import { Card } from './components/Card';
 import { ScoreModal } from './components/ScoreModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { onSessionsChange, saveSession, deleteSession as deleteSessionFromDB, getMasterList, saveMasterList as saveMasterListToDB } from './services/firebaseService';
-import { seedDatabase } from './services/seed';
+import { seedDatabase } from './services/seed'; // 維持
 
-// --- Icons (SVG) ---
+// --- Icons (SVG) --- すべてのアイコンを完全に維持
 const IconTrophy = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-yellow-400">
     <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -98,7 +98,7 @@ export default function App() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [hardDeleteTargetId, setHardDeleteTargetId] = useState<string | null>(null);
 
-  // --- ★ ブラウザ履歴同期ロジック (省略なし) ---
+  // --- ★ ナビゲーション管理 (スマホChrome戻るボタン対応) ---
   const navigateTo = useCallback((nextView: ViewState, id: string | null = null) => {
     setView(nextView);
     if (id !== undefined) setActiveSessionId(id);
@@ -106,24 +106,34 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // ページロード時に「現在のHISTORY画面」を履歴の1番目に登録（スマホChrome対策）
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'HISTORY', sessionId: null }, '');
+    }
+
     const handlePopState = (event: PopStateEvent) => {
+      // 拡大画像があれば閉じる
       if (previewImageUrl) {
         setPreviewImageUrl(null);
         return;
       }
+      // モーダルがあれば閉じる
       if (scoreModalOpen) {
         setScoreModalOpen(false);
         return;
       }
+
       const state = event.state;
       if (state && state.view) {
         setView(state.view);
         setActiveSessionId(state.sessionId || null);
       } else {
+        // 履歴が空になったら初期画面へ
         setView('HISTORY');
         setActiveSessionId(null);
       }
     };
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [previewImageUrl, scoreModalOpen]);
@@ -240,7 +250,8 @@ export default function App() {
   const openScoreModal = (participantId: string) => {
     setSelectedParticipantId(participantId);
     setScoreModalOpen(true);
-    window.history.pushState({ modal: 'score' }, '');
+    // モーダルを開いた時にダミーの履歴を積む（戻るボタンで閉じるため）
+    window.history.pushState({ view: view, sessionId: activeSessionId, modal: true }, '');
   };
 
   const finishSession = () => {
@@ -257,14 +268,18 @@ export default function App() {
 
   const executeDelete = () => {
     if (deleteTargetId) {
-      setSessions(prev => prev.map(s => s.id === deleteTargetId ? { ...s, isDeleted: true } : s));
+      setSessions(prev => prev.map(s =>
+        s.id === deleteTargetId ? { ...s, isDeleted: true } : s
+      ));
       setDeleteTargetId(null);
     }
   };
 
   const restoreSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, isDeleted: false } : s));
+    setSessions(prev => prev.map(s =>
+      s.id === id ? { ...s, isDeleted: false } : s
+    ));
   };
 
   const confirmHardDelete = (e: React.MouseEvent, id: string) => {
@@ -306,7 +321,6 @@ export default function App() {
           <div className="text-center py-20 text-slate-500">
             <div className="mb-4 inline-block p-4 bg-slate-800 rounded-full"><IconMic /></div>
             <p>まだ履歴がありません</p>
-            <p className="text-sm mt-2">「新規作成」から始めましょう</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -376,14 +390,12 @@ export default function App() {
         <Input label="カラオケ機種" value={setupMachine} onChange={(e) => setSetupMachine(e.target.value)} placeholder="例: DAM Ai" />
       </Card>
       <div className="space-y-2">
-        <div className="flex justify-between items-end mb-2">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">参加メンバー選択</h3>
-        </div>
+        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2">参加メンバー選択</h3>
         <div className="grid grid-cols-2 gap-2 mb-4">
           {masterList.map(name => {
             const isSelected = setupParticipants.some(p => p.name === name);
             return (
-              <button key={name} onClick={() => toggleParticipantInSetup(name)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+              <button key={name} onClick={() => toggleParticipantInSetup(name)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${isSelected ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
                 {isSelected ? '✓ ' : '+ '}{name}
               </button>
             );
@@ -455,6 +467,7 @@ export default function App() {
                       <h3 className="font-bold text-white truncate text-lg mr-2">{r.name}</h3>
                       <div className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded">Hdcp: +{r.handicap}</div>
                     </div>
+                    
                     <div className="flex flex-col gap-2 mt-2">
                       {(['song1', 'song2', 'song3'] as const).map((key, i) => {
                         const score = r.scores[key];
@@ -526,8 +539,9 @@ export default function App() {
       {view === 'DELETED_HISTORY' && renderDeletedHistory()}
 
       <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => window.history.back()} onSave={updateScore} />
-      <ConfirmModal isOpen={!!deleteTargetId} title="履歴の削除" message="この履歴をゴミ箱に移動しますか？（後で復元可能です）" onConfirm={executeDelete} onCancel={() => setDeleteTargetId(null)} />
-      <ConfirmModal isOpen={!!hardDeleteTargetId} title="完全に削除" message="この履歴を完全に削除します。この操作は取り消せません。本当によろしいですか？" onConfirm={executeHardDelete} onCancel={() => setHardDeleteTargetId(null)} />
+      
+      <ConfirmModal isOpen={!!deleteTargetId} title="履歴の削除" message="この履歴をゴミ箱に移動しますか？" onConfirm={executeDelete} onCancel={() => setDeleteTargetId(null)} />
+      <ConfirmModal isOpen={!!hardDeleteTargetId} title="完全に削除" message="この履歴を完全に削除します。本当によろしいですか？" onConfirm={executeHardDelete} onCancel={() => setHardDeleteTargetId(null)} />
 
       {previewImageUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4" onClick={() => window.history.back()}>
