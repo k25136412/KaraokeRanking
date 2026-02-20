@@ -11,8 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # ビルド前にAPIキーを含む .env ファイルを生成する
+      - name: Create env file
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" > .env
+          echo "VITE_GEMINI_MODEL=gemini-2.5-flash" >> .env
+
       - run: npm ci && npm run build
-        env:
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_GEMINI_MODEL: gemini-2.5-flash
+
+      # Firebaseへのデプロイ（前回消してしまった認証情報を復活！）
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KARAOKERANKING }}
+          channelId: live
+          projectId: karaokeranking
