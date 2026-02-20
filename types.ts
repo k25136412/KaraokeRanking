@@ -31,3 +31,15 @@ export interface RankingItem extends Participant {
   gamesPlayed: number;
   nextHandicap: number;
 }
+
+export interface ScoreData {
+  song1: number | '';
+  song1Title: string;
+  song1Image?: string; // 追加：画像のURL
+  song2: number | '';
+  song2Title: string;
+  song2Image?: string; // 追加
+  song3: number | '';
+  song3Title: string;
+  song3Image?: string; // 追加
+}
