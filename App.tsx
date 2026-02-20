@@ -12,17 +12,14 @@ import { onSessionsChange, saveSession, getMasterList, saveMasterList as saveMas
 import { IconMic, IconChevronLeft, IconTrash, IconMapPin, IconRestore } from './components/Icons';
 import { RankingCard } from './components/RankingCard';
 
-// ▼ タイトル用の追加アイコン
+// アイコン類
 const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
 const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
 const IconPhoto = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
 
-// ▼ 共通のカッコいいタイトル部品
 const ScreenTitle = ({ icon, title }: { icon: React.ReactNode, title: string }) => (
   <h1 className="text-xl font-black text-white flex items-center gap-2 tracking-wider">
-    <span className="text-pink-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]">
-      {icon}
-    </span>
+    <span className="text-pink-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]">{icon}</span>
     {title}
   </h1>
 );
@@ -32,26 +29,22 @@ export default function App() {
   const [masterList, setMasterList] = useState<string[]>([]);
   const [view, setView] = useState<ViewState>('HISTORY');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
   const [setupName, setSetupName] = useState('');
   const [setupDate, setSetupDate] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
   const [setupMachine, setSetupMachine] = useState('');
   const [setupParticipants, setSetupParticipants] = useState<{ name: string; handicap: number }[]>([]);
-
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passError, setPassError] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isEditingSession, setIsEditingSession] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // ▼ 画像保存用の参照
   const captureRef = useRef<HTMLDivElement>(null);
-
   const COMMON_PASSWORD = "4646";
 
   const pastLocations = useMemo(() => Array.from(new Set(sessions.map(s => s.location).filter((l): l is string => !!l && l.trim() !== ''))), [sessions]);
@@ -117,27 +110,34 @@ export default function App() {
   const openScoreModal = (id: string) => { setSelectedParticipantId(id); setScoreModalOpen(true); window.history.pushState({ modal: true }, ''); };
   const openPreview = (url: string) => { setPreviewImageUrl(url); window.history.pushState({ preview: true }, ''); };
 
-  // ▼ 画像として保存する処理
   const handleExportImage = async () => {
     if (!captureRef.current) return;
-    try {
-      // 画面の見た目そのままを高画質でJPEG化
-      const dataUrl = await toJpeg(captureRef.current, {
-        quality: 0.95,
-        backgroundColor: '#000000',
-        pixelRatio: 2, // 高画質出力
-        style: { padding: '16px' } // 余白をつける
-      });
-      const link = document.createElement('a');
-      link.download = `karaoke_ranking_${Date.now()}.jpg`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error(err);
-      alert('画像の作成に失敗しました。');
-    }
-  };
+    setIsExporting(true);
 
+    setTimeout(async () => {
+      try {
+        const dataUrl = await toJpeg(captureRef.current!, {
+          quality: 0.95,
+          backgroundColor: '#000000',
+          pixelRatio: 2,
+          style: {
+            width: '1500px', // キャンバスの幅を固定
+            margin: '0',
+            display: 'block'
+          }
+        });
+        const link = document.createElement('a');
+        link.download = `karaoke_ranking_${activeSession?.name || 'result'}.jpg`;
+        link.href = dataUrl;
+        link.click();
+      } catch (err) {
+        console.error(err);
+        alert('画像の作成に失敗しました。');
+      } finally {
+        setIsExporting(false);
+      }
+    }, 1500);
+  };
   if (!isAuthorized) {
     return (
       <div className="min-h-screen max-w-md mx-auto bg-dark flex items-center justify-center p-6">
@@ -154,9 +154,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto bg-dark p-6 font-sans">
+    <div className={`min-h-screen ${isExporting ? '' : 'max-w-md'} mx-auto bg-dark p-6 font-sans`}>
 
-      {/* --- 履歴一覧画面 --- */}
       {view === 'HISTORY' && (
         <div className="space-y-6 pb-20 animate-fade-in">
           <div className="flex items-center justify-between mb-4">
@@ -176,73 +175,106 @@ export default function App() {
         </div>
       )}
 
-      {/* --- 大会情報（進行中・詳細）画面 --- */}
       {(view === 'ACTIVE' || view === 'DETAILS') && activeSession && (
         <div className="space-y-6 pb-24 animate-fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1">
-              <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"><IconChevronLeft /></button>
-              <ScreenTitle icon={<IconMic />} title="大会情報" />
+          {!isExporting && (
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1">
+                <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"><IconChevronLeft /></button>
+                <ScreenTitle icon={<IconMic />} title="大会情報" />
+              </div>
+              <button onClick={() => setIsEditingSession(!isEditingSession)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isEditingSession ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.4)]' : 'bg-slate-900 text-indigo-400 border border-indigo-500/30'}`}>{isEditingSession ? '✓ 完了' : '✎ 編集'}</button>
             </div>
+          )}
 
-            <button
-              onClick={() => setIsEditingSession(!isEditingSession)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isEditingSession ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.4)]' : 'bg-slate-900 text-indigo-400 border border-indigo-500/30'}`}
-            >
-              {isEditingSession ? <><span>✓</span><span>完了</span></> : <><span>✎</span><span>編集</span></>}
-            </button>
+          <div ref={captureRef} className={`${isExporting ? 'w-[1500px] py-12' : ''} bg-dark`}>
+            {/* 画像出力時のヘッダー */}
+            {isExporting && (
+              <div className="mb-10 border-b-4 border-pink-600 pb-6 flex justify-between items-end px-12">
+                {/* ↑ px-12 を追加して、右端からタイトルを離しました */}
+                <div>
+                  <h1 className="text-5xl font-black text-white mb-3 tracking-widest">{activeSession.name}</h1>
+                  <p className="text-2xl text-slate-400 font-mono">{formatDate(activeSession.date)} @ {activeSession.location || 'カラオケ店'}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-damgold text-2xl font-black tracking-tighter">KARAOKE RANKER RESULT</div>
+                  <div className="text-slate-500 text-sm mt-1 font-mono uppercase">System Generated Report</div>
+                </div>
+              </div>
+            )}
+
+            {isExporting ? (
+              /* ▼ 画像出力用のテーブル (左右に余白 px-12 を追加) ▼ */
+              <div className="w-full px-12">
+                <div className="w-full border-separate border-spacing-y-2">
+                  {/* ヘッダー行 */}
+                  <div className="flex bg-slate-900/80 p-3 rounded-t-xl text-indigo-400 font-black text-xs border-b border-indigo-500/30">
+                    <div className="w-16 text-center">RANK</div>
+                    <div className="w-40 pl-2">NAME / HDCP</div>
+                    <div className="w-[750px] grid grid-cols-3 gap-2 px-2">
+                      <div className="text-center">1st SONG</div>
+                      <div className="text-center">2nd SONG</div>
+                      <div className="text-center">3rd SONG</div>
+                    </div>
+                    <div className="w-32 text-right pr-4">TOTAL SCORE</div>
+                  </div>
+
+                  {rankings.map((r, i) => (
+                    <div key={r.id} className="flex items-center bg-surface p-3 border-l-4 border-l-indigo-500 border border-slate-800/50 mt-2 rounded-r-xl">
+                      <div className="w-16 text-center text-3xl font-black font-mono text-damgold">{r.rank}</div>
+                      <div className="w-40 pl-2">
+                        <div className="text-lg font-black text-white truncate leading-none">{r.name}</div>
+                        <div className="text-indigo-400 font-mono text-[9px] mt-1">H:+{r.handicap}</div>
+                      </div>
+                      <div className="w-[750px] grid grid-cols-3 gap-2 px-2">
+                        {[1, 2, 3].map(num => {
+                          const title = r.scores[`song${num}Title` as keyof ScoreData];
+                          const artwork = r.scores[`song${num}Artwork` as keyof ScoreData];
+                          const score = r.scores[`song${num}` as keyof ScoreData];
+                          return (
+                            <div key={num} className="bg-black/60 p-2 rounded-lg border border-slate-700/30 flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[9px] text-slate-500 truncate leading-tight mb-0.5">{title || '---'}</div>
+                                <div className="text-lg font-black font-mono text-indigo-300 leading-none">{score || '0.000'}</div>
+                              </div>
+                              <div className="w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden border border-slate-700">
+                                {artwork ? (
+                                  <img src={artwork as string} className="w-full h-full object-cover" crossOrigin="anonymous" alt="" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-700">♪</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="w-32 text-right pr-4">
+                        <div className="text-[9px] text-slate-500 font-mono mb-1">AVG: {r.average.toFixed(3)}</div>
+                        <div className="text-3xl font-black text-white">{r.finalScore.toFixed(3)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* 通常表示（スマホ用）は変更なし */
+              <div className="space-y-3">
+                {rankings.map((r, i) => (
+                  <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* ▼ この部分（captureRef）が画像化されます ▼ */}
-          <div ref={captureRef} className="bg-dark pb-2 -mx-2 px-2 rounded-xl">
-            <Card className="space-y-4 border-slate-800">
-              {isEditingSession ? (
-                <div className="space-y-4 animate-fade-in">
-                  <Input label="大会名" value={activeSession.name} onChange={(e) => saveSession({ ...activeSession, name: e.target.value })} />
-                  <Input label="日時" type="datetime-local" value={activeSession.date ? new Date(new Date(activeSession.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={(e) => { if (e.target.value) { saveSession({ ...activeSession, date: new Date(e.target.value).toISOString() }); } }} />
-                  <Input label="場所" list="location-list" value={activeSession.location || ''} onChange={(e) => saveSession({ ...activeSession, location: e.target.value })} placeholder="例: ラウンドワン" />
-                  <datalist id="location-list">{pastLocations.map(loc => <option key={loc} value={loc} />)}</datalist>
-                  <Input label="機種" list="machine-list" value={activeSession.machineType || ''} onChange={(e) => saveSession({ ...activeSession, machineType: e.target.value })} placeholder="例: DAM" />
-                  <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4 animate-fade-in">
-                  <div className="col-span-2">
-                    <div className="text-xs text-indigo-400 font-bold ml-1 mb-1">大会名</div>
-                    <div className="text-white font-bold bg-[#1a1a1a] rounded-lg px-4 py-2.5 border border-[#333333]">{activeSession.name}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-xs text-indigo-400 font-bold ml-1 mb-1">日時</div>
-                    <div className="text-white bg-[#1a1a1a] rounded-lg px-4 py-2.5 border border-[#333333] font-mono">{formatDate(activeSession.date)}</div>
-                  </div>
-                  <div className="col-span-1">
-                    <div className="text-xs text-indigo-400 font-bold ml-1 mb-1">場所</div>
-                    <div className="text-white bg-[#1a1a1a] rounded-lg px-4 py-2.5 border border-[#333333] truncate">{activeSession.location || '-'}</div>
-                  </div>
-                  <div className="col-span-1">
-                    <div className="text-xs text-indigo-400 font-bold ml-1 mb-1">機種</div>
-                    <div className="text-white bg-[#1a1a1a] rounded-lg px-4 py-2.5 border border-[#333333] truncate">{activeSession.machineType || '-'}</div>
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <div className="space-y-3 mt-6">
-              {rankings.map((r, i) => (
-                <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
-              ))}
+          {!isExporting && (
+            <div className="flex justify-end mt-4">
+              <button onClick={handleExportImage} className="flex items-center gap-2 px-5 py-3 bg-indigo-600/20 text-indigo-300 rounded-2xl text-sm font-black border-2 border-indigo-500/50 hover:bg-indigo-600/40 transition-all shadow-[0_0_20px_rgba(0,229,255,0.2)] active:scale-95">
+                <IconPhoto /> 画像で保存してシェア
+              </button>
             </div>
-          </div>
-          {/* ▲ ここまでが画像化の対象範囲 ▲ */}
+          )}
 
-          {/* ▼ 画像書き出しボタン ▼ */}
-          <div className="flex justify-end mt-4 mb-8">
-            <button onClick={handleExportImage} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 text-indigo-300 rounded-xl text-sm font-bold border border-indigo-500/50 hover:bg-indigo-600/40 transition-colors shadow-[0_0_15px_rgba(0,229,255,0.15)]">
-              <IconPhoto /> 画像で保存してシェア
-            </button>
-          </div>
-
-          {view === 'ACTIVE' && (
+          {view === 'ACTIVE' && !isExporting && (
             <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
               <Button fullWidth onClick={() => { saveSession({ ...activeSession, isFinished: true }); navigateTo('HISTORY'); }}>大会を終了する</Button>
             </div>
@@ -250,14 +282,13 @@ export default function App() {
         </div>
       )}
 
-      {/* --- 新規大会作成（SETUP）画面 --- */}
+      {/* SETUP / DELETED_HISTORY 等は変更なしのため省略して継続... */}
       {view === 'SETUP' && (
         <div className="space-y-6 pb-24 animate-fade-in">
           <div className="flex items-center gap-1 mb-4">
             <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400"><IconChevronLeft /></button>
             <ScreenTitle icon={<IconPlus />} title="新規大会の作成" />
           </div>
-
           <Card className="space-y-4 border-slate-800">
             <Input label="大会名" value={setupName} onChange={(e) => setSetupName(e.target.value)} />
             <Input label="日時" type="datetime-local" value={setupDate} onChange={(e) => setSetupDate(e.target.value)} />
@@ -266,7 +297,6 @@ export default function App() {
             <Input label="機種" value={setupMachine} onChange={(e) => setSetupMachine(e.target.value)} list="machine-list" placeholder="例: DAM" />
             <datalist id="machine-list">{pastMachines.map(mac => <option key={mac} value={mac} />)}</datalist>
           </Card>
-
           <div className="grid grid-cols-2 gap-3 mt-6">
             {masterList.map(name => (
               <button key={name} onClick={() => {
@@ -275,7 +305,6 @@ export default function App() {
               }} className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border ${setupParticipants.some(p => p.name === name) ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/50 shadow-[0_0_10px_rgba(0,229,255,0.2)]' : 'bg-[#1a1a1a] text-slate-400 border-[#333333]'}`}>{name}</button>
             ))}
           </div>
-
           {setupParticipants.length > 0 && (
             <div className="mt-6 space-y-3">
               <h3 className="text-sm font-bold text-indigo-400 ml-1">参加者とハンデキャップ</h3>
@@ -285,26 +314,17 @@ export default function App() {
                     <span className="font-bold text-white text-lg">{p.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-400 font-mono">Hdcp: +</span>
-                      <input
-                        type="number" step="1" value={p.handicap}
-                        onChange={(e) => {
-                          const newHandicap = parseFloat(e.target.value) || 0;
-                          setSetupParticipants(prev => prev.map(sp => sp.name === p.name ? { ...sp, handicap: newHandicap } : sp));
-                        }}
-                        className="w-20 bg-dark border border-[#333333] text-white rounded-lg px-3 py-2 text-right focus:border-indigo-500 outline-none font-mono text-lg font-bold"
-                      />
+                      <input type="number" step="1" value={p.handicap} onChange={(e) => { const newHandicap = parseFloat(e.target.value) || 0; setSetupParticipants(prev => prev.map(sp => sp.name === p.name ? { ...sp, handicap: newHandicap } : sp)); }} className="w-20 bg-dark border border-[#333333] text-white rounded-lg px-3 py-2 text-right focus:border-indigo-500 outline-none font-mono text-lg font-bold" />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
           <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto"><Button fullWidth onClick={createSession}>大会を開始</Button></div>
         </div>
       )}
 
-      {/* --- ゴミ箱（削除済み履歴）画面 --- */}
       {view === 'DELETED_HISTORY' && (
         <div className="space-y-6 pb-20 animate-fade-in">
           <div className="flex items-center gap-1 mb-4">
@@ -314,23 +334,18 @@ export default function App() {
           {sessions.filter(s => s.isDeleted).map(s => (
             <Card key={s.id} className="opacity-70 flex justify-between items-center border-[#333333]">
               <div><h3 className="font-bold text-slate-400 line-through">{s.name}</h3><p className="text-xs text-slate-500 font-mono">{formatDate(s.date)}</p></div>
-              <button onClick={() => saveSession({ ...s, isDeleted: false })} className="text-damgold font-bold px-3 py-1.5 rounded bg-slate-900 border border-damgold/30 text-sm"><IconRestore /> 復元</button>
+              <button onClick={() => saveSession({ ...s, isDeleted: false })} className="text-damgold font-bold px-3 py-1.5 rounded bg-slate-900 border border-damgold/30 text-sm">復元</button>
             </Card>
           ))}
         </div>
       )}
 
-      {/* --- モーダル（ポップアップ）群 --- */}
-      <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => window.history.back()} onSave={(id, scores) => {
-        if (activeSession) saveSession({ ...activeSession, participants: activeSession.participants.map(p => p.id === id ? { ...p, scores } : p) });
-      }} />
-
+      <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => window.history.back()} onSave={(id, scores) => { if (activeSession) saveSession({ ...activeSession, participants: activeSession.participants.map(p => p.id === id ? { ...p, scores } : p) }); }} />
       {previewImageUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4" onClick={() => window.history.back()}>
           <img src={previewImageUrl} alt="Evidence" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
-
       <ConfirmModal isOpen={!!deleteTargetId} title="履歴の削除" message="ゴミ箱に移動しますか？" onConfirm={() => { if (deleteTargetId) saveSession({ ...sessions.find(s => s.id === deleteTargetId)!, isDeleted: true }); setDeleteTargetId(null); }} onCancel={() => setDeleteTargetId(null)} />
     </div>
   );
