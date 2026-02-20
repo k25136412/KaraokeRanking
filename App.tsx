@@ -16,6 +16,8 @@ import { RankingCard } from './components/RankingCard';
 const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
 const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
 const IconPhoto = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
+// ▼ 追加: 画像出力用の王冠アイコン
+const IconCrownSolid = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-damgold drop-shadow-[0_0_8px_rgba(255,183,0,0.8)]"><path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.007zm-4.48 14.714a.75.75 0 001.139.983L12 16.33l4.553 2.578a.75.75 0 001.139-.983l-1.257-5.273 4.117-3.527c.773-.663.362-1.882-.652-1.963l-5.404-.433L12.48 2.606a.75.75 0 00-1.375 0L9.022 7.73l-5.404.433c-1.014.081-1.425 1.3-.652 1.963l4.117 3.527-1.257 5.273z" clipRule="evenodd" /></svg>;
 
 const ScreenTitle = ({ icon, title }: { icon: React.ReactNode, title: string }) => (
   <h1 className="text-xl font-black text-white flex items-center gap-2 tracking-wider">
@@ -79,6 +81,26 @@ export default function App() {
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const rankings = useMemo(() => activeSession ? generateRanking(activeSession.participants) : [], [activeSession]);
 
+  // ▼▼▼ 追加: 大会全体の「最高素点」を計算するロジック ▼▼▼
+  // ▼ 修正: 文字列ではなく「数値」として最高得点を保持する
+  const highestRawScore = useMemo(() => {
+    if (!activeSession) return null;
+    let maxScore = 0;
+    activeSession.participants.forEach(p => {
+      ['song1', 'song2', 'song3'].forEach(key => {
+        const scoreStr = p.scores[key as keyof ScoreData];
+        if (scoreStr) {
+          const scoreNum = parseFloat(scoreStr);
+          if (!isNaN(scoreNum) && scoreNum > maxScore) {
+            maxScore = scoreNum;
+          }
+        }
+      });
+    });
+    return maxScore > 0 ? maxScore : null;
+  }, [activeSession]);
+  // ▲▲▲ ここまで ▲▲▲
+
   useEffect(() => setIsEditingSession(false), [activeSessionId]);
 
   const getLastHandicap = (name: string): number => {
@@ -113,31 +135,20 @@ export default function App() {
   const handleExportImage = async () => {
     if (!captureRef.current) return;
     setIsExporting(true);
-
     setTimeout(async () => {
       try {
         const dataUrl = await toJpeg(captureRef.current!, {
-          quality: 0.95,
-          backgroundColor: '#000000',
-          pixelRatio: 2,
-          style: {
-            width: '1500px', // キャンバスの幅を固定
-            margin: '0',
-            display: 'block'
-          }
+          quality: 0.95, backgroundColor: '#000000', pixelRatio: 2,
+          style: { width: '1500px', margin: '0', display: 'block' }
         });
         const link = document.createElement('a');
         link.download = `karaoke_ranking_${activeSession?.name || 'result'}.jpg`;
         link.href = dataUrl;
         link.click();
-      } catch (err) {
-        console.error(err);
-        alert('画像の作成に失敗しました。');
-      } finally {
-        setIsExporting(false);
-      }
+      } catch (err) { console.error(err); alert('画像の作成に失敗しました。'); } finally { setIsExporting(false); }
     }, 1500);
   };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen max-w-md mx-auto bg-dark flex items-center justify-center p-6">
@@ -188,10 +199,8 @@ export default function App() {
           )}
 
           <div ref={captureRef} className={`${isExporting ? 'w-[1500px] py-12' : ''} bg-dark`}>
-            {/* 画像出力時のヘッダー */}
             {isExporting && (
               <div className="mb-10 border-b-4 border-pink-600 pb-6 flex justify-between items-end px-12">
-                {/* ↑ px-12 を追加して、右端からタイトルを離しました */}
                 <div>
                   <h1 className="text-5xl font-black text-white mb-3 tracking-widest">{activeSession.name}</h1>
                   <p className="text-2xl text-slate-400 font-mono">{formatDate(activeSession.date)} @ {activeSession.location || 'カラオケ店'}</p>
@@ -203,11 +212,37 @@ export default function App() {
               </div>
             )}
 
+            {!isExporting && (
+              <Card className="space-y-4 border-slate-800 mb-6">
+                {isEditingSession ? (
+                  <div className="space-y-4 animate-fade-in">
+                    <Input label="大会名" value={activeSession.name} onChange={(e) => saveSession({ ...activeSession, name: e.target.value })} />
+                    <Input label="日時" type="datetime-local" value={activeSession.date ? new Date(new Date(activeSession.date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={(e) => { if (e.target.value) { saveSession({ ...activeSession, date: new Date(e.target.value).toISOString() }); } }} />
+                    <Input label="場所" value={activeSession.location || ''} onChange={(e) => saveSession({ ...activeSession, location: e.target.value })} list="location-list" />
+                    <Input label="機種" value={activeSession.machineType || ''} onChange={(e) => saveSession({ ...activeSession, machineType: e.target.value })} list="machine-list" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                    <div className="col-span-2">
+                      <div className="text-xs text-indigo-400 font-bold mb-1">大会名</div>
+                      <div className="text-white font-bold bg-[#1a1a1a] rounded-lg px-4 py-2 border border-[#333333]">{activeSession.name}</div>
+                    </div>
+                    <div className="col-span-1">
+                      <div className="text-xs text-indigo-400 font-bold mb-1">場所</div>
+                      <div className="text-white bg-[#1a1a1a] rounded-lg px-4 py-2 border border-[#333333] truncate">{activeSession.location || '-'}</div>
+                    </div>
+                    <div className="col-span-1">
+                      <div className="text-xs text-indigo-400 font-bold mb-1">機種</div>
+                      <div className="text-white bg-[#1a1a1a] rounded-lg px-4 py-2 border border-[#333333] truncate">{activeSession.machineType || '-'}</div>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
             {isExporting ? (
-              /* ▼ 画像出力用のテーブル (左右に余白 px-12 を追加) ▼ */
               <div className="w-full px-12">
                 <div className="w-full border-separate border-spacing-y-2">
-                  {/* ヘッダー行 */}
                   <div className="flex bg-slate-900/80 p-3 rounded-t-xl text-indigo-400 font-black text-xs border-b border-indigo-500/30">
                     <div className="w-16 text-center">RANK</div>
                     <div className="w-40 pl-2">NAME / HDCP</div>
@@ -231,13 +266,22 @@ export default function App() {
                           const title = r.scores[`song${num}Title` as keyof ScoreData];
                           const artwork = r.scores[`song${num}Artwork` as keyof ScoreData];
                           const score = r.scores[`song${num}` as keyof ScoreData];
+
+                          // ▼ 追加: 画像出力時も最高素点を判定
+                          const scoreNum = score ? parseFloat(score) : null;
+                          const isHighest = scoreNum !== null && highestRawScore !== null && scoreNum === highestRawScore;
+
                           return (
-                            <div key={num} className="bg-black/60 p-2 rounded-lg border border-slate-700/30 flex items-center gap-2">
+                            <div key={num} className="bg-black/60 p-2 rounded-lg border border-slate-700/30 flex items-center gap-2 relative">
+                              {/* ▼ 追加: 最高素点なら王冠を表示 */}
+                              {isHighest && <div className="absolute -top-2 -left-2 transform -rotate-12"><IconCrownSolid /></div>}
+
                               <div className="flex-1 min-w-0">
                                 <div className="text-[9px] text-slate-500 truncate leading-tight mb-0.5">{title || '---'}</div>
-                                <div className="text-lg font-black font-mono text-indigo-300 leading-none">{score || '0.000'}</div>
+                                {/* ▼ 変更: 最高素点ならゴールド色で強調 */}
+                                <div className={`text-lg font-black font-mono leading-none ${isHighest ? 'text-damgold drop-shadow-[0_0_8px_rgba(255,183,0,0.6)]' : 'text-indigo-300'}`}>{score || '0.000'}</div>
                               </div>
-                              <div className="w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden border border-slate-700">
+                              <div className={`w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden border ${isHighest ? 'border-damgold shadow-[0_0_8px_rgba(255,183,0,0.4)]' : 'border-slate-700'}`}>
                                 {artwork ? (
                                   <img src={artwork as string} className="w-full h-full object-cover" crossOrigin="anonymous" alt="" />
                                 ) : (
@@ -257,10 +301,10 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              /* 通常表示（スマホ用）は変更なし */
               <div className="space-y-3">
                 {rankings.map((r, i) => (
-                  <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
+                  // ▼ 変更: RankingCardに計算した最高素点を渡す
+                  <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} highestRawScore={highestRawScore} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
                 ))}
               </div>
             )}
@@ -282,7 +326,7 @@ export default function App() {
         </div>
       )}
 
-      {/* SETUP / DELETED_HISTORY 等は変更なしのため省略して継続... */}
+      {/* SETUP, DELETED_HISTORY, Modals は変更なしのため省略（元のコードを維持してください） */}
       {view === 'SETUP' && (
         <div className="space-y-6 pb-24 animate-fade-in">
           <div className="flex items-center gap-1 mb-4">
