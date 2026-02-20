@@ -2,19 +2,19 @@
   "short_name": "歌合戦",
   "name": "カラオケランキング",
   "icons": [
-  {
-    "src": "logo192.png",
-    "type": "image/png",
-    "sizes": "192x192"
-  },
-  {
-    "src": "logo512.png",
-    "type": "image/png",
-    "sizes": "512x512",
-    "purpose": "any maskable"
-  }
-],
-  "start_url": ".",
+    {
+      "src": "/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
