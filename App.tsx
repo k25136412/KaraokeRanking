@@ -169,6 +169,37 @@ export default function App() {
               }} className={`px-3 py-2 rounded-lg text-sm ${setupParticipants.some(p => p.name === name) ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>{name}</button>
             ))}
           </div>
+
+          {/* ▼ ここから追加：選択された参加者のハンデキャップ入力欄 ▼ */}
+          {setupParticipants.length > 0 && (
+            <div className="mt-6 space-y-3">
+              <h3 className="text-sm font-bold text-slate-400">参加者とハンデキャップ</h3>
+              <div className="space-y-2">
+                {setupParticipants.map((p) => (
+                  <div key={p.name} className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                    <span className="font-bold text-white">{p.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Hdcp: +</span>
+                      <input 
+                        type="number" 
+                        step="1"
+                        value={p.handicap}
+                        onChange={(e) => {
+                          // 入力された数字を保存する処理
+                          const newHandicap = parseFloat(e.target.value) || 0;
+                          setSetupParticipants(prev => 
+                            prev.map(sp => sp.name === p.name ? { ...sp, handicap: newHandicap } : sp)
+                          );
+                        }}
+                        className="w-20 bg-slate-900 border border-slate-600 text-white rounded px-2 py-1 text-right focus:border-indigo-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* ▲ ここまで追加 ▲ */}          
           <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto"><Button fullWidth onClick={createSession}>大会を開始</Button></div>
         </div>
       )}
