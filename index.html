@@ -24,43 +24,20 @@
     tailwind.config = {
       theme: {
         extend: {
-          // ▼ 追加：アプリ全体のフォントを丸ゴシックに設定 ▼
           fontFamily: {
             sans: ['"M PLUS Rounded 1c"', 'sans-serif'],
             mono: ['"M PLUS Rounded 1c"', 'monospace'],
           },
           colors: {
-            // ▼ 緑っぽさを消し、DAM風のディープブルーとマゼンタに変更 ▼
-            dark: '#000000',    // 背景：漆黒
-            surface: '#111111', // パネル：少し明るい黒
-            indigo: {
-              300: '#60a5fa', // 明るい青
-              400: '#3b82f6', 
-              500: '#2563eb', // DAMの基本ブルー
-              600: '#1d4ed8',
-            },
-            pink: {
-              400: '#fb7185', 
-              500: '#f43f5e', // DAMの「曲をさがす」のようなマゼンタレッド
-              600: '#e11d48',
-            },
-            slate: {
-              700: '#333333', 
-              800: '#1a1a1a', 
-              900: '#0a0a0a',
-            },
-            // DAMの枠線などによく使われるゴールド・黄色系
+            dark: '#000000',
+            surface: '#111111',
+            indigo: { 300: '#60a5fa', 400: '#3b82f6', 500: '#2563eb', 600: '#1d4ed8' },
+            pink: { 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48' },
+            slate: { 700: '#333333', 800: '#1a1a1a', 900: '#0a0a0a' },
             damgold: '#ffb700',
           },
-          animation: {
-            'fade-in': 'fadeIn 0.3s ease-out',
-          },
-          keyframes: {
-            fadeIn: {
-              '0%': { opacity: '0', transform: 'translateY(10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            },
-          },
+          animation: { 'fade-in': 'fadeIn 0.3s ease-out' },
+          keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } },
         },
       },
     };
@@ -75,7 +52,8 @@
     "uuid": "https://esm.sh/uuid@^13.0.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
     "react/": "https://esm.sh/react@^19.2.1/",
-    "react": "https://esm.sh/react@^19.2.1"
+    "react": "https://esm.sh/react@^19.2.1",
+    "html-to-image": "https://esm.sh/html-to-image@1.11.11"
   }
 }
   </script>
@@ -85,11 +63,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').then(function (registration) {
-          console.log('ServiceWorker registration successful');
-        }, function (err) {
-          console.log('ServiceWorker registration failed: ', err);
-        });
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW failed: ', err));
       });
     }
   </script>
