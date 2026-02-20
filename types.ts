@@ -43,3 +43,26 @@ export interface ScoreData {
   song3Title: string;
   song3Image?: string; // 追加
 }
+
+export interface ScoreData {
+  song1: number | '';
+  song1Title: string;
+  song1Image?: string;   // 採点写真（Firebase）
+  song1Artwork?: string; // ★追加：ジャケ写URL（iTunes API）
+  song2: number | '';
+  song2Title: string;
+  song2Image?: string;
+  song2Artwork?: string; // ★追加
+  song3: number | '';
+  song3Title: string;
+  song3Image?: string;
+  song3Artwork?: string; // ★追加
+}
+
+export interface Participant {
+  id: string;
+  name: string;
+  handicap: number;
+  scores: ScoreData;
+  total: number;
+}

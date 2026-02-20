@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Session, ViewState, Participant, ScoreData, RankingItem } from './types';
 import { calculateStats, generateRanking, formatDate } from './utils/calculations';
@@ -8,7 +8,7 @@ import { Card } from './components/Card';
 import { ScoreModal } from './components/ScoreModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { onSessionsChange, saveSession, deleteSession as deleteSessionFromDB, getMasterList, saveMasterList as saveMasterListToDB } from './services/firebaseService';
-import { seedDatabase } from './services/seed'; 
+import { seedDatabase } from './services/seed';
 
 // --- Icons (SVG) ---
 const IconTrophy = () => (
@@ -98,6 +98,37 @@ export default function App() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [hardDeleteTargetId, setHardDeleteTargetId] = useState<string | null>(null);
 
+  // --- ★ ブラウザ履歴同期ロジック (省略なし) ---
+  const navigateTo = useCallback((nextView: ViewState, id: string | null = null) => {
+    setView(nextView);
+    if (id !== undefined) setActiveSessionId(id);
+    window.history.pushState({ view: nextView, sessionId: id }, '');
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (previewImageUrl) {
+        setPreviewImageUrl(null);
+        return;
+      }
+      if (scoreModalOpen) {
+        setScoreModalOpen(false);
+        return;
+      }
+      const state = event.state;
+      if (state && state.view) {
+        setView(state.view);
+        setActiveSessionId(state.sessionId || null);
+      } else {
+        setView('HISTORY');
+        setActiveSessionId(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [previewImageUrl, scoreModalOpen]);
+
+  // Firebase接続
   useEffect(() => {
     const unsubscribeSessions = onSessionsChange((data) => {
       setSessions(data);
@@ -113,9 +144,9 @@ export default function App() {
   }, []);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
-  const rankings: RankingItem[] = activeSession ? generateRanking(activeSession.participants) : [];
+  const rankings: RankingItem[] = useMemo(() => activeSession ? generateRanking(activeSession.participants) : [], [activeSession]);
 
-  const globalMaxSongScore = React.useMemo(() => {
+  const globalMaxSongScore = useMemo(() => {
     if (!activeSession) return 0;
     let max = 0;
     activeSession.participants.forEach(p => {
@@ -148,7 +179,7 @@ export default function App() {
     setSetupLocation('');
     setSetupMachine('');
     setSetupParticipants([]);
-    setView('SETUP');
+    navigateTo('SETUP');
   };
 
   const toggleParticipantInSetup = (name: string) => {
@@ -192,8 +223,7 @@ export default function App() {
       isFinished: false
     };
     saveSession(newSession);
-    setActiveSessionId(newSession.id);
-    setView('ACTIVE');
+    navigateTo('ACTIVE', newSession.id);
   };
 
   const updateScore = (participantId: string, scores: ScoreData) => {
@@ -210,12 +240,14 @@ export default function App() {
   const openScoreModal = (participantId: string) => {
     setSelectedParticipantId(participantId);
     setScoreModalOpen(true);
+    window.history.pushState({ modal: 'score' }, '');
   };
 
   const finishSession = () => {
     if (!activeSession) return;
-    saveSession({ ...activeSession, isFinished: true });
-    setView('DETAILS');
+    const updated = { ...activeSession, isFinished: true };
+    saveSession(updated);
+    navigateTo('DETAILS', activeSession.id);
   };
 
   const deleteSession = (e: React.MouseEvent, id: string) => {
@@ -225,18 +257,14 @@ export default function App() {
 
   const executeDelete = () => {
     if (deleteTargetId) {
-      setSessions(prev => prev.map(s =>
-        s.id === deleteTargetId ? { ...s, isDeleted: true } : s
-      ));
+      setSessions(prev => prev.map(s => s.id === deleteTargetId ? { ...s, isDeleted: true } : s));
       setDeleteTargetId(null);
     }
   };
 
   const restoreSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setSessions(prev => prev.map(s =>
-      s.id === id ? { ...s, isDeleted: false } : s
-    ));
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, isDeleted: false } : s));
   };
 
   const confirmHardDelete = (e: React.MouseEvent, id: string) => {
@@ -249,25 +277,6 @@ export default function App() {
       setSessions(prev => prev.filter(s => s.id !== hardDeleteTargetId));
       setHardDeleteTargetId(null);
     }
-  };
-
-  // 関数定義は残しておきます（ボタンだけ非表示にします）
-  const fillTestData = () => {
-    if (!activeSessionId) return;
-    setSessions(prev => prev.map(s => {
-      if (s.id !== activeSessionId) return s;
-      return {
-        ...s,
-        participants: s.participants.map(p => ({
-          ...p,
-          scores: {
-            song1: parseFloat((Math.random() * 20 + 80).toFixed(3)),
-            song2: parseFloat((Math.random() * 20 + 80).toFixed(3)),
-            song3: parseFloat((Math.random() * 20 + 80).toFixed(3)),
-          }
-        }))
-      };
-    }));
   };
 
   const handleAuth = (e: React.FormEvent) => {
@@ -289,7 +298,7 @@ export default function App() {
       <div className="space-y-6 pb-20 animate-fade-in">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-400">履歴一覧</h1>
-          <button onClick={() => setView('DELETED_HISTORY')} className="text-xs text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+          <button onClick={() => navigateTo('DELETED_HISTORY')} className="text-xs text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
             <IconTrash /> ゴミ箱
           </button>
         </div>
@@ -302,7 +311,7 @@ export default function App() {
         ) : (
           <div className="space-y-3">
             {activeSessions.map(session => (
-              <Card key={session.id} onClick={() => { setActiveSessionId(session.id); setView(session.isFinished ? 'DETAILS' : 'ACTIVE'); }} className="relative group pr-12">
+              <Card key={session.id} onClick={() => navigateTo(session.isFinished ? 'DETAILS' : 'ACTIVE', session.id)} className="relative group pr-12">
                 <div className="flex flex-col gap-1">
                   <h3 className="font-bold text-lg text-white">{session.name}</h3>
                   <div className="text-sm text-slate-400 flex items-center gap-3 mt-1">
@@ -329,7 +338,7 @@ export default function App() {
     return (
       <div className="space-y-6 pb-20 animate-fade-in">
         <div className="flex items-center gap-2 mb-4">
-          <button onClick={() => setView('HISTORY')} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
+          <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
           <h2 className="text-xl font-bold text-white">ゴミ箱（削除済み）</h2>
         </div>
         {deletedSessions.length === 0 ? (
@@ -357,7 +366,7 @@ export default function App() {
   const renderSetup = () => (
     <div className="space-y-6 pb-20 animate-fade-in">
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => setView('HISTORY')} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
+        <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
         <h2 className="text-xl font-bold text-white">新規セットアップ</h2>
       </div>
       <Card className="space-y-4">
@@ -416,7 +425,7 @@ export default function App() {
     return (
       <div className="space-y-6 pb-24 animate-fade-in">
         <div className="flex items-center gap-2">
-          <button onClick={() => setView('HISTORY')} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
+          <button onClick={() => window.history.back()} className="p-2 -ml-2 text-slate-400 hover:text-white"><IconChevronLeft /></button>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-white leading-tight">{activeSession.name}</h2>
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-slate-400">
@@ -446,27 +455,27 @@ export default function App() {
                       <h3 className="font-bold text-white truncate text-lg mr-2">{r.name}</h3>
                       <div className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded">Hdcp: +{r.handicap}</div>
                     </div>
-
                     <div className="flex flex-col gap-2 mt-2">
                       {(['song1', 'song2', 'song3'] as const).map((key, i) => {
                         const score = r.scores[key];
                         const title = r.scores[`${key}Title` as keyof ScoreData];
-                        const imageUrl = r.scores[`${key}Image` as keyof ScoreData];
+                        const artworkUrl = r.scores[`${key}Artwork` as keyof ScoreData];
+                        const evidenceUrl = r.scores[`${key}Image` as keyof ScoreData];
                         return (
-                          <div key={i} className="flex flex-col text-[10px]">
-                            {title && <div className="text-slate-400 truncate mb-0.5">{title}</div>}
-                            <div className={`flex items-center justify-center gap-1.5 py-1 rounded ${score ? 'bg-slate-800 text-indigo-300' : 'bg-slate-800/30 text-slate-600'}`}>
-                              <span>{score || '-'}</span>
-                              {imageUrl && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(imageUrl as string); }}
-                                  className="text-indigo-400 hover:text-indigo-200 transition-colors p-0.5"
-                                  title="採点画像を確認"
-                                >
-                                  <IconCamera />
-                                </button>
-                              )}
+                          <div key={i} className="flex items-center gap-2 group">
+                            <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex-shrink-0 overflow-hidden shadow-inner">
+                              {artworkUrl ? <img src={artworkUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-700 text-[8px]">♪</div>}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col">
+                              {title && <div className="text-[9px] text-slate-400 truncate leading-tight mb-0.5">{title}</div>}
+                              <div className={`flex items-center justify-center gap-1.5 py-0.5 rounded text-[10px] ${score ? 'bg-slate-800 text-indigo-300' : 'bg-slate-800/30 text-slate-600'}`}>
+                                <span>{score || '-'}</span>
+                                {evidenceUrl && (
+                                  <button onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(evidenceUrl as string); window.history.pushState({preview: true}, ''); }} className="text-indigo-400 hover:text-indigo-200 transition-colors p-0.5">
+                                    <IconCamera />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -478,7 +487,6 @@ export default function App() {
                       <span>素点Avg</span><span className="text-sm font-bold text-slate-300 font-mono">{r.average.toFixed(3)}</span>
                     </div>
                     <div className="text-2xl font-black text-white tracking-tighter leading-none">{r.finalScore.toFixed(3)}</div>
-                    {activeSession.isFinished && <div className="mt-1 text-[10px] text-pink-400 font-medium bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20">次回H: +{r.nextHandicap}</div>}
                   </div>
                 </div>
               </Card>
@@ -487,7 +495,6 @@ export default function App() {
         </div>
         {!readonly && (
           <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto space-y-3">
-            {/* ★「テストデータ入力」ボタンを削除しました */}
             <Button fullWidth onClick={finishSession} variant="primary">大会を終了して結果を確定</Button>
           </div>
         )}
@@ -518,18 +525,18 @@ export default function App() {
       {view === 'DETAILS' && renderActive(true)}
       {view === 'DELETED_HISTORY' && renderDeletedHistory()}
 
-      <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => setScoreModalOpen(false)} onSave={updateScore} />
+      <ScoreModal isOpen={scoreModalOpen} participant={activeSession ? activeSession.participants.find(p => p.id === selectedParticipantId) || null : null} onClose={() => window.history.back()} onSave={updateScore} />
       <ConfirmModal isOpen={!!deleteTargetId} title="履歴の削除" message="この履歴をゴミ箱に移動しますか？（後で復元可能です）" onConfirm={executeDelete} onCancel={() => setDeleteTargetId(null)} />
       <ConfirmModal isOpen={!!hardDeleteTargetId} title="完全に削除" message="この履歴を完全に削除します。この操作は取り消せません。本当によろしいですか？" onConfirm={executeHardDelete} onCancel={() => setHardDeleteTargetId(null)} />
 
       {previewImageUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4" onClick={() => setPreviewImageUrl(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4" onClick={() => window.history.back()}>
           <div className="relative max-w-5xl w-full h-full flex items-center justify-center">
-            <button className="absolute top-0 right-0 m-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-[110]" onClick={() => setPreviewImageUrl(null)}>
+            <button className="absolute top-0 right-0 m-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-[110]" onClick={() => window.history.back()}>
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <img src={previewImageUrl} alt="採点結果" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()} />
-            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-bold tracking-widest uppercase">Tap outside to close</p>
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-bold tracking-widest uppercase">Tap outside or back to close</p>
           </div>
         </div>
       )}

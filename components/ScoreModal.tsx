@@ -21,12 +21,21 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
   const [isAnalyzing, setIsAnalyzing] = useState<number | null>(null);
 
   useEffect(() => {
-    if (participant) {
-      setScores(participant.scores);
-    }
+    if (participant) setScores(participant.scores);
   }, [participant]);
 
   if (!isOpen || !participant) return null;
+
+  // iTunes APIからジャケ写URLを検索して取得する関数
+  const fetchArtwork = async (query: string): Promise<string> => {
+    try {
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1&country=jp`);
+      const data = await response.json();
+      return data.results[0]?.artworkUrl100 || "";
+    } catch {
+      return "";
+    }
+  };
 
   const handleScoreChange = (key: keyof ScoreData, value: string) => {
     if (value === '' || /^\d+(\.\d{0,3})?$/.test(value)) {
@@ -36,8 +45,18 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     }
   };
 
-  const handleTitleChange = (key: string, value: string) => {
-    setScores(prev => ({ ...prev, [key]: value }));
+  // 曲名が入力・選択された時にジャケ写も自動取得する
+  const handleTitleChange = async (index: number, value: string) => {
+    const titleKey = `song${index + 1}Title` as keyof ScoreData;
+    const artworkKey = `song${index + 1}Artwork` as keyof ScoreData;
+    
+    setScores(prev => ({ ...prev, [titleKey]: value }));
+
+    // 2文字以上の入力があればジャケ写を検索
+    if (value.length > 1) {
+      const artwork = await fetchArtwork(value);
+      setScores(prev => ({ ...prev, [artworkKey]: artwork }));
+    }
   };
 
   const handleImageChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,37 +64,33 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     if (!file) return;
 
     setIsAnalyzing(index);
-    
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
-      
-      // 1. AIで解析 (曲名 / アーティスト名 を取得)
-      const ocrResult = await analyzeScoreImage(base64);
-      
-      // 2. Firebase Storage に画像を保存
+      const ocrResult = await analyzeScoreImage(base64); //
       const imageUrl = await uploadScoreImage(participant.id, index, base64);
       
+      let artwork = "";
+      if (ocrResult?.songTitle) {
+        artwork = await fetchArtwork(ocrResult.songTitle);
+      }
+
       const songKey = `song${index + 1}` as keyof ScoreData;
       const titleKey = `song${index + 1}Title` as keyof ScoreData;
       const imageKey = `song${index + 1}Image` as keyof ScoreData;
+      const artworkKey = `song${index + 1}Artwork` as keyof ScoreData;
 
       setScores(prev => ({
         ...prev,
         [songKey]: ocrResult ? ocrResult.score : prev[songKey],
         [titleKey]: ocrResult ? ocrResult.songTitle || (prev[titleKey] as string) : (prev[titleKey] as string),
-        [imageKey]: imageUrl || (prev[imageKey] as string)
+        [imageKey]: imageUrl || (prev[imageKey] as string),
+        [artworkKey]: artwork || (prev[artworkKey] as string)
       }));
-      
       setIsAnalyzing(null);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
-  };
-
-  const handleSave = () => {
-    onSave(participant.id, scores);
-    onClose();
   };
 
   return (
@@ -89,75 +104,42 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
             const songKey = `song${index + 1}` as keyof ScoreData;
             const titleKey = `song${index + 1}Title` as keyof ScoreData;
             const imageKey = `song${index + 1}Image` as keyof ScoreData;
+            const artworkKey = `song${index + 1}Artwork` as keyof ScoreData;
             const imgUrl = scores[imageKey] as string;
+            const artworkUrl = scores[artworkKey] as string;
 
             return (
               <div key={index} className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Song #{index + 1}</span>
-                  <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${
-                    isAnalyzing === index 
-                      ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300' 
-                      : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300'
-                  }`}>
-                    <span className="text-[10px] font-bold">
-                      {isAnalyzing === index ? '解析＆保存中...' : '📷 写真を撮る'}
-                    </span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      className="hidden" 
-                      onChange={(e) => handleImageChange(index, e)}
-                      disabled={isAnalyzing !== null}
-                    />
+                  <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${isAnalyzing === index ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300' : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300'}`}>
+                    <span className="text-[10px] font-bold">{isAnalyzing === index ? '解析＆保存中...' : '📷 写真を撮る'}</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleImageChange(index, e)} disabled={isAnalyzing !== null} />
                   </label>
                 </div>
 
-                <div className="space-y-2">
-                  <SongInput
-                    value={scores[titleKey] as string || ''}
-                    onChange={(val) => handleTitleChange(titleKey, val)}
-                    placeholder="曲名 / アーティスト名"
-                  />
+                <div className="flex gap-3">
+                  {/* ジャケ写表示 */}
+                  <div className="w-12 h-12 bg-slate-900 rounded-lg flex-shrink-0 border border-slate-700 overflow-hidden">
+                    {artworkUrl ? <img src={artworkUrl} className="w-full h-full object-cover" alt="Jacket" /> : <div className="w-full h-full flex items-center justify-center text-slate-700">♪</div>}
+                  </div>
+                  <div className="flex-1">
+                    <SongInput
+                      value={scores[titleKey] as string || ''}
+                      onChange={(val) => handleTitleChange(index, val)}
+                      placeholder="曲名 / アーティスト名"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <input
-                    type="number"
-                    step="0.001"
-                    inputMode="decimal"
-                    value={scores[songKey]}
-                    onChange={(e) => handleScoreChange(songKey, e.target.value)}
-                    placeholder="00.000"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-mono text-white focus:border-indigo-500 outline-none"
-                  />
-                </div>
+                <input type="number" step="0.001" inputMode="decimal" value={scores[songKey]} onChange={(e) => handleScoreChange(songKey, e.target.value)} placeholder="00.000" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-mono text-white focus:border-indigo-500 outline-none" />
 
-                {/* 保存された写真のプレビュー表示 */}
                 {imgUrl && (
                   <div className="mt-2 flex items-center gap-3 p-2 bg-black/30 rounded-lg border border-slate-700/50">
-                    <img 
-                      src={imgUrl} 
-                      alt="Score evidence" 
-                      className="w-12 h-12 object-cover rounded border border-slate-600" 
-                    />
+                    <img src={imgUrl} alt="Score" className="w-12 h-12 object-cover rounded border border-slate-600" />
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-green-400 font-bold flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        画像を保存済み
-                      </span>
-                      {/* ★「証拠写真を確認」から「採点画像を確認」に修正 */}
-                      <a 
-                        href={imgUrl} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="text-[10px] text-indigo-300 underline mt-0.5 hover:text-indigo-200"
-                      >
-                        採点画像を確認
-                      </a>
+                      <span className="text-[10px] text-green-400 font-bold flex items-center gap-1">✓ 画像を保存済み</span>
+                      <a href={imgUrl} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-300 underline mt-0.5">採点画像を確認</a>
                     </div>
                   </div>
                 )}
@@ -165,10 +147,9 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
             );
           })}
         </div>
-
         <div className="flex gap-3 mt-8 pt-4 border-t border-slate-700">
           <Button variant="secondary" onClick={onClose} className="flex-1">キャンセル</Button>
-          <Button onClick={handleSave} className="flex-1">保存</Button>
+          <Button onClick={() => { onSave(participant.id, scores); onClose(); }} className="flex-1">保存</Button>
         </div>
       </div>
     </div>
