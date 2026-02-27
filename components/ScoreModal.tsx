@@ -26,7 +26,6 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
 
   if (!isOpen || !participant) return null;
 
-  // iTunes APIからジャケ写URLを検索して取得する関数
   const fetchArtwork = async (query: string): Promise<string> => {
     try {
       const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1&country=jp`);
@@ -41,7 +40,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     if (value === '' || /^\d+(\.\d{0,3})?$/.test(value)) {
       const num = parseFloat(value);
       if (value !== '' && (num < 0 || num > 100)) return;
-      setScores(prev => ({ ...prev, [key]: value === '' ? '' : Number(value) }));
+      setScores(prev => ({ ...prev, [key]: value === '' ? '' : value }));
     }
   };
 
@@ -56,8 +55,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     }
   };
 
-  const handleImageChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageChange = async (index: number, file: File | null) => {
     if (!file) return;
 
     setIsAnalyzing(index);
@@ -87,7 +85,6 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
       setIsAnalyzing(null);
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   return (
@@ -110,19 +107,38 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">{index + 1} 曲目</span>
 
-                  {/* ★ 修正：ボタンを1つに統合（capture属性なし） */}
-                  <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${isAnalyzing === index ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300' : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300'}`}>
-                    <span className="text-[10px] font-bold">
-                      {isAnalyzing === index ? 'AI解析中...' : '📷 画像を選択'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleImageChange(index, e)}
-                      disabled={isAnalyzing !== null}
-                    />
-                  </label>
+                  {/* ★ 修正：カメラ用とライブラリ用の2つのボタンを配置 */}
+                  <div className="flex gap-2">
+                    {isAnalyzing === index ? (
+                      <span className="text-[10px] font-bold text-indigo-300 animate-pulse bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/30">AI解析中...</span>
+                    ) : (
+                      <>
+                        {/* カメラボタン */}
+                        <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white transition-all shadow-lg active:scale-95">
+                          <span className="text-[10px] font-bold">📷 撮る</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => { handleImageChange(index, e.target.files?.[0] || null); e.target.value = ''; }}
+                            disabled={isAnalyzing !== null}
+                          />
+                        </label>
+                        {/* アルバムボタン */}
+                        <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-500 text-slate-200 transition-all shadow-lg active:scale-95">
+                          <span className="text-[10px] font-bold">🖼️ 選ぶ</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => { handleImageChange(index, e.target.files?.[0] || null); e.target.value = ''; }}
+                            disabled={isAnalyzing !== null}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -138,7 +154,15 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
                   </div>
                 </div>
 
-                <input type="number" step="0.001" inputMode="decimal" value={scores[songKey]} onChange={(e) => handleScoreChange(songKey, e.target.value)} placeholder="00.000" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-mono text-white focus:border-indigo-500 outline-none" />
+                <input
+                  type="number"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={scores[songKey]}
+                  onChange={(e) => handleScoreChange(songKey, e.target.value)}
+                  placeholder="00.000"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-mono text-white focus:border-indigo-500 outline-none"
+                />
 
                 {imgUrl && (
                   <div className="mt-2 flex items-center gap-3 p-2 bg-black/30 rounded-lg border border-slate-700/50">
