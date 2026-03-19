@@ -1,10 +1,27 @@
-
 import { ref, get, set, remove, onValue, off } from "firebase/database";
+import { getAuth, signInAnonymously } from "firebase/auth";
 import { database } from "./firebase";
-import { Session, Participant } from "../types";
+import { Session } from "../types";
 
 const SESSIONS_PATH = "sessions";
 const MASTER_LIST_PATH = "master_list";
+
+const auth = getAuth();
+
+// --- Authentication (匿名ログイン) ---
+
+/**
+ * アプリ起動時に呼び出し、Firebaseとの通信を許可します。
+ */
+export const loginAnonymously = async () => {
+  try {
+    const userCredential = await signInAnonymously(auth);
+    console.log("Firebase Authenticated:", userCredential.user.uid);
+  } catch (error) {
+    console.error("Firebase Auth Error:", error);
+    throw error;
+  }
+};
 
 // --- Session Management ---
 
@@ -12,16 +29,17 @@ export const getSessions = async (): Promise<Session[]> => {
   const snapshot = await get(ref(database, SESSIONS_PATH));
   if (snapshot.exists()) {
     const sessions = snapshot.val();
-    // Convert from object to array and sort by date
-    return Object.values(sessions).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  } else {
-    return [];
+    // オブジェクトを配列に変換し、日付順にソート
+    return Object.values(sessions).sort((a: any, b: any) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    ) as Session[];
   }
+  return [];
 };
 
 export const getSession = async (sessionId: string): Promise<Session | null> => {
-    const snapshot = await get(ref(database, `${SESSIONS_PATH}/${sessionId}`));
-    return snapshot.exists() ? snapshot.val() : null;
+  const snapshot = await get(ref(database, `${SESSIONS_PATH}/${sessionId}`));
+  return snapshot.exists() ? snapshot.val() : null;
 };
 
 export const saveSession = (session: Session) => {
@@ -31,7 +49,6 @@ export const saveSession = (session: Session) => {
 export const deleteSession = (sessionId: string) => {
   return remove(ref(database, `${SESSIONS_PATH}/${sessionId}`));
 };
-
 
 // --- Master List Management ---
 
@@ -44,7 +61,6 @@ export const saveMasterList = (masterList: string[]) => {
   return set(ref(database, MASTER_LIST_PATH), masterList);
 };
 
-
 // --- Real-time listeners ---
 
 export const onSessionsChange = (callback: (sessions: Session[]) => void) => {
@@ -52,14 +68,15 @@ export const onSessionsChange = (callback: (sessions: Session[]) => void) => {
   const listener = onValue(sessionsRef, (snapshot) => {
     if (snapshot.exists()) {
       const sessions = snapshot.val();
-      const sessionsArray = Object.values(sessions).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const sessionsArray = Object.values(sessions).sort((a: any, b: any) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ) as Session[];
       callback(sessionsArray);
     } else {
       callback([]);
     }
   });
 
-  // Return a function to detach the listener
   return () => off(sessionsRef, 'value', listener);
 };
 
@@ -69,6 +86,5 @@ export const onMasterListChange = (callback: (masterList: string[]) => void) => 
     callback(snapshot.exists() ? snapshot.val() : []);
   });
 
-  // Return a function to detach the listener
   return () => off(masterListRef, 'value', listener);
 };

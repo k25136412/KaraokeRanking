@@ -8,7 +8,13 @@ import { Input } from './components/Input';
 import { Card } from './components/Card';
 import { ScoreModal } from './components/ScoreModal';
 import { ConfirmModal } from './components/ConfirmModal';
-import { onSessionsChange, saveSession, getMasterList, saveMasterList as saveMasterListToDB } from './services/firebaseService';
+import {
+  loginAnonymously,
+  onSessionsChange,
+  saveSession,
+  getMasterList,
+  saveMasterList as saveMasterListToDB
+} from './services/firebaseService';
 import { IconMic, IconChevronLeft, IconTrash, IconMapPin, IconRestore } from './components/Icons';
 import { RankingCard } from './components/RankingCard';
 
@@ -16,7 +22,6 @@ import { RankingCard } from './components/RankingCard';
 const IconList = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
 const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
 const IconPhoto = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
-// ▼ 追加: 画像出力用の王冠アイコン
 const IconCrownSolid = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-damgold drop-shadow-[0_0_8px_rgba(255,183,0,0.8)]"><path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.007zm-4.48 14.714a.75.75 0 001.139.983L12 16.33l4.553 2.578a.75.75 0 001.139-.983l-1.257-5.273 4.117-3.527c.773-.663.362-1.882-.652-1.963l-5.404-.433L12.48 2.606a.75.75 0 00-1.375 0L9.022 7.73l-5.404.433c-1.014.081-1.425 1.3-.652 1.963l4.117 3.527-1.257 5.273z" clipRule="evenodd" /></svg>;
 
 const ScreenTitle = ({ icon, title }: { icon: React.ReactNode, title: string }) => (
@@ -71,24 +76,42 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [previewImageUrl, scoreModalOpen]);
 
+  // ★ 修正: 匿名ログイン後にリスナーを設定する初期化処理
   useEffect(() => {
-    const unsubscribe = onSessionsChange((data) => setSessions(data));
-    const fetchMasters = async () => { const masters = await getMasterList(); if (masters) setMasterList(masters); };
-    fetchMasters();
-    return () => unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+
+    const initFirebase = async () => {
+      try {
+        // 1. まず匿名ログインを実行
+        await loginAnonymously();
+
+        // 2. ログイン成功後にリアルタイムリスナーを開始
+        unsubscribe = onSessionsChange((data) => setSessions(data));
+
+        // 3. マスターリストの取得
+        const masters = await getMasterList();
+        if (masters) setMasterList(masters);
+      } catch (error) {
+        console.error("Firebaseの初期化に失敗しました:", error);
+      }
+    };
+
+    initFirebase();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const rankings = useMemo(() => activeSession ? generateRanking(activeSession.participants) : [], [activeSession]);
 
-  // ▼▼▼ 追加: 大会全体の「最高素点」を計算するロジック ▼▼▼
-  // ▼ 修正: 文字列ではなく「数値」として最高得点を保持する
   const highestRawScore = useMemo(() => {
     if (!activeSession) return null;
     let maxScore = 0;
     activeSession.participants.forEach(p => {
-      ['song1', 'song2', 'song3'].forEach(key => {
-        const scoreStr = p.scores[key as keyof ScoreData];
+      (['song1', 'song2', 'song3'] as const).forEach(key => {
+        const scoreStr = p.scores[key];
         if (scoreStr) {
           const scoreNum = parseFloat(scoreStr);
           if (!isNaN(scoreNum) && scoreNum > maxScore) {
@@ -99,7 +122,6 @@ export default function App() {
     });
     return maxScore > 0 ? maxScore : null;
   }, [activeSession]);
-  // ▲▲▲ ここまで ▲▲▲
 
   useEffect(() => setIsEditingSession(false), [activeSessionId]);
 
@@ -267,18 +289,15 @@ export default function App() {
                           const artwork = r.scores[`song${num}Artwork` as keyof ScoreData];
                           const score = r.scores[`song${num}` as keyof ScoreData];
 
-                          // ▼ 追加: 画像出力時も最高素点を判定
                           const scoreNum = score ? parseFloat(score) : null;
                           const isHighest = scoreNum !== null && highestRawScore !== null && scoreNum === highestRawScore;
 
                           return (
                             <div key={num} className="bg-black/60 p-2 rounded-lg border border-slate-700/30 flex items-center gap-2 relative">
-                              {/* ▼ 追加: 最高素点なら王冠を表示 */}
                               {isHighest && <div className="absolute -top-2 -left-2 transform -rotate-12"><IconCrownSolid /></div>}
 
                               <div className="flex-1 min-w-0">
                                 <div className="text-[9px] text-slate-500 truncate leading-tight mb-0.5">{title || '---'}</div>
-                                {/* ▼ 変更: 最高素点ならゴールド色で強調 */}
                                 <div className={`text-lg font-black font-mono leading-none ${isHighest ? 'text-damgold drop-shadow-[0_0_8px_rgba(255,183,0,0.6)]' : 'text-indigo-300'}`}>{score || '0.000'}</div>
                               </div>
                               <div className={`w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden border ${isHighest ? 'border-damgold shadow-[0_0_8px_rgba(255,183,0,0.4)]' : 'border-slate-700'}`}>
@@ -303,7 +322,6 @@ export default function App() {
             ) : (
               <div className="space-y-3">
                 {rankings.map((r, i) => (
-                  // ▼ 変更: RankingCardに計算した最高素点を渡す
                   <RankingCard key={r.id} r={r} index={i} isFinished={activeSession.isFinished} highestRawScore={highestRawScore} onOpenScore={openScoreModal} onOpenPreview={openPreview} />
                 ))}
               </div>
@@ -326,7 +344,6 @@ export default function App() {
         </div>
       )}
 
-      {/* SETUP, DELETED_HISTORY, Modals は変更なしのため省略（元のコードを維持してください） */}
       {view === 'SETUP' && (
         <div className="space-y-6 pb-24 animate-fade-in">
           <div className="flex items-center gap-1 mb-4">
