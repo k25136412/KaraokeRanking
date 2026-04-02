@@ -5,6 +5,43 @@ import { SongInput } from './SongInput';
 import { analyzeScoreImage } from '../services/geminiOcrService';
 import { uploadScoreImage } from '../services/firebase';
 
+/**
+ * ★追加機能: 画像をリサイズ・圧縮してデータ容量を削減する
+ * 長辺を1000pxに制限し、JPEG形式(画質0.6)で書き出します。
+ */
+const compressImage = async (base64Str: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_SIZE = 1000; // OCRに必要な十分な解像度
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height *= MAX_SIZE / width;
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width *= MAX_SIZE / height;
+          height = MAX_SIZE;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      // 容量を劇的に減らすため、JPEG形式で0.6の圧縮率を適用
+      resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+  });
+};
+
 interface ScoreModalProps {
   participant: Participant | null;
   isOpen: boolean;
@@ -61,9 +98,14 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     setIsAnalyzing(index);
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = reader.result as string;
-      const ocrResult = await analyzeScoreImage(base64);
-      const imageUrl = await uploadScoreImage(participant.id, index, base64);
+      const originalBase64 = reader.result as string;
+
+      // ★修正: 解析・アップロード前に画像を圧縮してダイエット
+      const compressedBase64 = await compressImage(originalBase64);
+
+      // 圧縮後のデータを使用して解析とアップロードを行う
+      const ocrResult = await analyzeScoreImage(compressedBase64);
+      const imageUrl = await uploadScoreImage(participant.id, index, compressedBase64);
 
       let artwork = "";
       if (ocrResult?.songTitle) {
@@ -107,13 +149,11 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">{index + 1} 曲目</span>
 
-                  {/* ★ 修正：カメラ用とライブラリ用の2つのボタンを配置 */}
                   <div className="flex gap-2">
                     {isAnalyzing === index ? (
                       <span className="text-[10px] font-bold text-indigo-300 animate-pulse bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/30">AI解析中...</span>
                     ) : (
                       <>
-                        {/* カメラボタン */}
                         <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white transition-all shadow-lg active:scale-95">
                           <span className="text-[10px] font-bold">📷 撮る</span>
                           <input
@@ -125,7 +165,6 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
                             disabled={isAnalyzing !== null}
                           />
                         </label>
-                        {/* アルバムボタン */}
                         <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-500 text-slate-200 transition-all shadow-lg active:scale-95">
                           <span className="text-[10px] font-bold">🖼️ 選ぶ</span>
                           <input
