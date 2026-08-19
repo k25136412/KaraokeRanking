@@ -1,13 +1,9 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database"; // ← AnalyticsではなくDatabaseを読み込みます
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getDatabase } from "firebase/database";
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyAxmQ1KxSCehnor21IC_425fezsafBvxTs",
   authDomain: "karaokeranking.firebaseapp.com",
@@ -19,12 +15,11 @@ const firebaseConfig = {
   measurementId: "G-BKLD05781P"
 };
 
-// Firebaseとデータベースの初期化
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const database = getDatabase(app);
 export const storage = getStorage(app);
 
-export { database };
+export { app, database };
 
 export const uploadScoreImage = async (participantId: string, songNumber: number, base64Image: string): Promise<string> => {
   const storageRef = ref(storage, `scores/${participantId}_song${songNumber}_${Date.now()}.jpg`);

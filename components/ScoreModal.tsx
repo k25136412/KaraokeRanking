@@ -77,7 +77,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({ participant, isOpen, onC
     if (value === '' || /^\d+(\.\d{0,3})?$/.test(value)) {
       const num = parseFloat(value);
       if (value !== '' && (num < 0 || num > 100)) return;
-      setScores(prev => ({ ...prev, [key]: value === '' ? '' : value }));
+      setScores(prev => ({ ...prev, [key]: value === '' ? '' : num }));
     }
   };
 

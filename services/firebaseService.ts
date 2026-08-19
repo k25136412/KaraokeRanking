@@ -1,12 +1,12 @@
 import { ref, get, set, remove, onValue, off } from "firebase/database";
 import { getAuth, signInAnonymously } from "firebase/auth";
-import { database } from "./firebase";
+import { app, database } from "./firebase";
 import { Session } from "../types";
+
+const auth = getAuth(app);
 
 const SESSIONS_PATH = "sessions";
 const MASTER_LIST_PATH = "master_list";
-
-const auth = getAuth();
 
 // --- Authentication (匿名ログイン) ---
 

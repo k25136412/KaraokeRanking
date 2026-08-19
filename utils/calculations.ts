@@ -2,8 +2,10 @@ import { Participant, RankingItem, ScoreData } from '../types';
 
 export const calculateStats = (participant: Participant): { average: number; finalScore: number; gamesPlayed: number } => {
   const { song1, song2, song3 } = participant.scores;
-  const scores = [song1, song2, song3].filter((s): s is number => typeof s === 'number' && s !== 0);
-  
+  const scores = [song1, song2, song3]
+    .map((value) => (typeof value === 'number' ? value : Number(value)))
+    .filter((value): value is number => !Number.isNaN(value) && value !== 0);
+
   const gamesPlayed = scores.length;
   if (gamesPlayed === 0) {
     return { average: 0, finalScore: 0, gamesPlayed: 0 };

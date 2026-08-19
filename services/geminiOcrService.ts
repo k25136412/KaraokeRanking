@@ -1,11 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+﻿import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// .env から設定を読み込み
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
-// .env に VITE_GEMINI_MODEL がない場合は、動作確認済みの 2.5-flash を使います
-const modelName = import.meta.env.VITE_GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+const modelName = import.meta.env.VITE_GEMINI_MODEL?.trim() || "gemini-2.0-flash";
 
-const genAI = new GoogleGenerativeAI(apiKey || "");
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export interface OcrResult {
   score: number;
@@ -13,31 +11,29 @@ export interface OcrResult {
 }
 
 export const analyzeScoreImage = async (base64Image: string): Promise<OcrResult | null> => {
-  if (!apiKey) {
+  if (!apiKey || !genAI) {
     console.error("APIキーが設定されていません。.env ファイルを確認してください。");
+    alert("画像解析に失敗しました.\nGemini APIキーが未設定です.\n.env ファイルを確認してください.\n※ 既存の点数データはそのままです.");
     return null;
   }
 
   try {
-    // モデル名を環境変数から取得して設定
-    const model = genAI.getGenerativeModel(
-      { model: modelName },
-      { apiVersion: "v1" }
-    );
+    const model = genAI.getGenerativeModel({ model: modelName });
 
-    // 「曲名 / アーティスト名」の形式で返すようプロンプトを調整
     const prompt = `
-      このカラオケ採点画面から「点数(画面上で一番大きい文字で表示されている数字)」「曲名」「アーティスト名」を抽出してください。
-      曲名とアーティスト名は必ず「曲名 / アーティスト名」という形式に結合してください。
-      出力は必ず以下のJSON形式のみで返してください。
-      { "score": 93.598, "songTitle": "曲名 / アーティスト名" }
+      このカラオケ採点画面から、点数・曲名・アーティスト名を抽出してください。
+      1) 点数は画面上で最も大きい数字を使用
+      2) 曲名とアーティスト名は必ず「曲名 / アーティスト名」の形式で返す
+      3) 出力は JSON のみ
+      4) 例: { "score": 93.598, "songTitle": "曲名 / アーティスト名" }
     `;
 
+    const imageData = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
     const result = await model.generateContent([
       prompt,
       {
         inlineData: {
-          data: base64Image.split(",")[1],
+          data: imageData,
           mimeType: "image/jpeg",
         },
       },
@@ -45,26 +41,25 @@ export const analyzeScoreImage = async (base64Image: string): Promise<OcrResult 
 
     const response = await result.response;
     const text = response.text();
-    
-    const jsonMatch = text.match(/\{.*\}/s);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        score: typeof parsed.score === 'string' ? parseFloat(parsed.score) : parsed.score,
-        songTitle: parsed.songTitle
-      };
+    const jsonMatch = text.match(/[\s\S]*\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      console.warn("Geminiの応答にJSONが含まれていません:", text);
+      return null;
     }
-    return null;
+
+    const parsed = JSON.parse(jsonMatch[0].match(/\{[\s\S]*\}/)?.[0] ?? "{}");
+    return {
+      score: typeof parsed.score === "string" ? Number(parsed.score) : Number(parsed.score ?? 0),
+      songTitle: parsed.songTitle || undefined,
+    };
   } catch (error: any) {
-    // 指定された独自の警告メッセージを表示
-    const warningMsg = "**モデルが非対応になった可能性があります envファイルを見直してください***";
     console.error("--- OCR解析エラー ---");
-    console.error(warningMsg);
-    console.error("エラー詳細:", error?.message);
-    
-    // ユーザー（家族）にも分かりやすいようアラートを表示
-    alert(`解析に失敗しました。\n${warningMsg}`);
-    
+    console.error("モデル:", modelName);
+    console.error("エラー詳細:", error?.message || error);
+
+    alert(`解析に失敗しました.\n原因: ${error?.message || "不明なエラー"}\n\nAPIキーやモデル名を確認してください。\n※ 既存の点数データはそのままです。`);
+
     return null;
   }
 };
